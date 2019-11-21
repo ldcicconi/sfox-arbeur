@@ -3,6 +3,10 @@ package main
 import (
 	"net/url"
 	"os"
+	"strings"
+
+	tc "github.com/ldcicconi/trading-common"
+	"github.com/shopspring/decimal"
 )
 
 var (
@@ -19,11 +23,41 @@ var (
 		// "bchbtc",
 		// "ethbtc",
 	}
-	defaultFee = 17.5 // SFOX Smart fee (discounted) in Bps
+	defaultConfigs = []TraderConfig{
+		TraderConfig{
+			Pair:               *tc.NewPair("btcusd"),
+			MaxPositionAmount:  decimal.New(15, 0), // 15 USD
+			ProfitThresholdBps: decimal.New(10, 0),
+			FeeRateBps:         decimal.New(175, -1),
+		},
+		TraderConfig{
+			Pair:               *tc.NewPair("etcusd"),
+			MaxPositionAmount:  decimal.New(15, 0), // 15 USD
+			ProfitThresholdBps: decimal.New(10, 0),
+			FeeRateBps:         decimal.New(175, -1),
+		},
+		TraderConfig{
+			Pair:               *tc.NewPair("bchusd"),
+			MaxPositionAmount:  decimal.New(15, 0), // 15 USD
+			ProfitThresholdBps: decimal.New(10, 0),
+			FeeRateBps:         decimal.New(175, -1),
+		},
+		TraderConfig{
+			Pair:               *tc.NewPair("ethusd"),
+			MaxPositionAmount:  decimal.New(15, 0), // 15 USD
+			ProfitThresholdBps: decimal.New(10, 0),
+			FeeRateBps:         decimal.New(175, -1),
+		},
+	}
 )
 
+func getAPIKeysFromEnv() []string {
+	keysString := os.Getenv("SFOX_API_KEYS")
+	return strings.Split(keysString, ",")
+}
+
 func main() {
-	myApp := NewSFOXArbApp(defaultPairs, os.Getenv("SFOX_API_KEY"))
+	myApp := NewSFOXArbApp(defaultConfigs, getAPIKeysFromEnv())
 	myApp.Start()
 	forever := make(chan bool)
 	<-forever

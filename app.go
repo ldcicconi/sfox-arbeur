@@ -17,24 +17,27 @@ type app struct {
 	orderbookChan chan tc.SFOXOrderbook
 }
 
-func NewApp(wsURL url.URL, wsSubMessage interface{}, wsIsSecure bool, sfoxAPIKey string, pairsStr []string) *app {
+func NewApp(wsURL url.URL, wsSubMessage interface{}, wsIsSecure bool, sfoxAPIKeys []string, pairsStr []string) *app {
 	subMessageBytes, _ := json.Marshal(wsSubMessage)
-	pairs := GetPairsFromPairStrings(pairsStr)
+	// pairs := GetPairsFromPairStrings(pairsStr)
 	logger := log.New(os.Stdout, "", log.Ldate|log.Ltime|log.Lmicroseconds)
 	return &app{
 		md:            NewMarketData(wsURL, subMessageBytes, wsIsSecure, logger),
-		tm:            NewTraderManager(logger, sfoxAPIKey, pairs),
+		tm:            NewTraderManager(logger, sfoxAPIKeys, nil),
 		rawDataChan:   make(chan ws.MessageEnvelope),
 		orderbookChan: make(chan tc.SFOXOrderbook),
 	}
 }
 
-func NewSFOXArbApp(pairsStr []string, SFOXAPIKey string) *app {
+func NewSFOXArbApp(pairConfigs []TraderConfig, SFOXAPIKeys []string) *app {
 	logger := log.New(os.Stdout, "", log.Ldate|log.Ltime|log.Lmicroseconds)
-	pairs := GetPairsFromPairStrings(pairsStr)
+	var pairs []tc.Pair
+	for _, tc := range pairConfigs {
+		pairs = append(pairs, tc.Pair)
+	}
 	return &app{
 		md:            NewSFOXMarketData(SFOXURL, pairs, logger),
-		tm:            NewTraderManager(logger, SFOXAPIKey, pairs),
+		tm:            NewTraderManager(logger, SFOXAPIKeys, pairConfigs),
 		rawDataChan:   make(chan ws.MessageEnvelope),
 		orderbookChan: make(chan tc.SFOXOrderbook),
 	}
