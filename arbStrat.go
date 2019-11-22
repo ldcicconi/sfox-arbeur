@@ -30,6 +30,10 @@ type arbStrat struct {
 
 type arbStatus int
 
+func (as *arbStatus) String() string {
+	return string(int(*as))
+}
+
 const (
 	STATUS_INIT          arbStatus = 0
 	STATUS_BUY_STARTED   arbStatus = 50
@@ -106,14 +110,18 @@ func FindArb(inOb tc.SFOXOrderbook, feeRateBps, profitMinBps, maxPositionCost de
 	sellVWAP := cumulativeProceedsFromSaleWFees.Div(cumulativeQuantitySold)
 	quantityToBuy := cumulativeQuantityBought.Mul(tc.One.Sub(feeRateBps.Div(tc.OneE5)))
 	profit := sellVWAP.Sub(buyVWAP).Mul(quantityToBuy)
+	if profit.LessThanOrEqual(decimal.Zero) {
+		err = errNoArb
+		return
+	}
 
 	arb = arbStrat{
 		Pair:           o.Pair,
 		BuyPrice:       buyVWAP,
 		SellPrice:      sellVWAP,
-		BuyLimitPrice:  highestBuyPrice,
-		SellLimitPrice: lowestSellPrice,
-		Quantity:       quantityToBuy,
+		BuyLimitPrice:  highestBuyPrice.Truncate(8),
+		SellLimitPrice: lowestSellPrice.Truncate(8),
+		Quantity:       quantityToBuy.Truncate(5),
 		ProfitGoal:     profit,
 		ProfitGoalBps:  profit.Div(buyVWAP.Mul(quantityToBuy)).Mul(tc.OneE5),
 	}

@@ -27,10 +27,13 @@ type Trader struct {
 
 func NewTrader(config TraderConfig, logger *log.Logger, manager *traderManager) *Trader {
 	return &Trader{
-		OrderbookChan: make(chan tc.SFOXOrderbook),
-		Config:        config,
-		Logger:        logger,
-		manager:       manager,
+		OrderbookChan:       make(chan tc.SFOXOrderbook),
+		Config:              config,
+		Logger:              logger,
+		manager:             manager,
+		killChan:            make(chan bool),
+		buyOrderStatusChan:  make(chan bool),
+		sellOrderStatusChan: make(chan bool),
 	}
 }
 
@@ -59,8 +62,6 @@ func (t *Trader) logLatency(ob tc.SFOXOrderbook) {
 }
 
 func (t *Trader) handleOrderbook(o tc.SFOXOrderbook) {
-	t.logLatency(o)
-	t.infof(o.DescribeArb())
 	quoteBalance := t.getBalance(t.Config.Pair.Quote)
 	maxPosAmount := decimal.Min(quoteBalance, t.Config.MaxPositionAmount)
 	arb, err := FindArb(o, t.Config.FeeRateBps, t.Config.ProfitThresholdBps, maxPosAmount)
@@ -75,6 +76,7 @@ func (t *Trader) handleOrderbook(o tc.SFOXOrderbook) {
 	}
 	if err == nil && t.currentPosition == nil {
 		// enter into a position, as there is a profitable arb opportunity, per our parameters
+		t.infof("found a profitable arb: %+v", arb)
 		t.currentPosition = &arb
 		t.manageArbStrategy()
 		return
@@ -99,35 +101,40 @@ func (t *Trader) manageArbStrategy() {
 				}
 				return
 			case <-t.buyOrderStatusChan:
+				fmt.Println("update from buy order status channel")
 				// update fill information if anything has changed
 				if t.buyOrderStatus.FilledQuantity.Equal(t.currentPosition.Quantity) {
 					// complete fill:
-					t.infof("[buy] RECOGNIZED TOTAL FILL. FILLEDQUANTITY: ", t.buyOrderStatus.FilledQuantity)
+					t.infof("[buy] RECOGNIZED TOTAL FILL. FILLEDQUANTITY: ", t.buyOrderStatus.FilledQuantity.String())
 					t.currentPosition.Status = STATUS_BUY_COMPLETE
 				} else {
-					t.infof("[buy] RECOGNIZED PARTIAL FILL. FILLEDQUANTITY: ", t.buyOrderStatus.FilledQuantity)
+					t.infof("[buy] RECOGNIZED PARTIAL FILL. FILLEDQUANTITY: ", t.buyOrderStatus.FilledQuantity.String())
 				}
 			case <-t.sellOrderStatusChan:
 				// update fill information if anything has changed
 				if t.sellOrderStatus.FilledQuantity.Equal(t.currentPosition.Quantity) {
 					// complete fill:
-					t.infof("[sell] RECOGNIZED TOTAL FILL. FILLEDQUANTITY: ", t.sellOrderStatus.FilledQuantity)
+					t.infof("[sell] RECOGNIZED TOTAL FILL. FILLEDQUANTITY: ", t.sellOrderStatus.FilledQuantity.String())
 					t.currentPosition.Status = STATUS_SELL_COMPLETE
 				} else {
-					t.infof("[sell] RECOGNIZED PARTIAL FILL. FILLEDQUANTITY: ", t.sellOrderStatus.FilledQuantity)
+					t.infof("[sell] RECOGNIZED PARTIAL FILL. FILLEDQUANTITY: ", t.sellOrderStatus.FilledQuantity.String())
 				}
 			default:
 			}
 			if t.currentPosition.Status == STATUS_INIT {
 				// enter the position
 				buyOrder := NewBuyOrderFromArbStrat(*t.currentPosition)
+				t.infof("attempting to buy %+v", buyOrder)
 				status, err := t.executeOrder(*buyOrder)
 				if err != nil {
+					t.infof("error attempting to buy %s", err.Error())
 					continue
 				}
+				t.infof("buy request successful!")
 				// determine status
 				statusLower := strings.ToLower(status.Status)
 				if statusLower == "started" {
+					t.infof("buy started")
 					t.currentPosition.Status = STATUS_BUY_STARTED
 					t.currentPosition.BuyTime = time.Now()
 					t.startBuyOrderStatusLoop(status.ID)
@@ -168,8 +175,10 @@ func (t *Trader) manageArbStrategy() {
 }
 
 func (t *Trader) startBuyOrderStatusLoop(orderID int64) {
+	t.infof("starting buy order status loop for %v", orderID)
 	go func() {
 		for {
+			time.Sleep(time.Millisecond * 500)
 			status, err := t.getOrderStatus(orderID)
 			if err != nil {
 				t.infof("ERROR: %s", err.Error())
@@ -194,8 +203,10 @@ func (t *Trader) startBuyOrderStatusLoop(orderID int64) {
 }
 
 func (t *Trader) startSellOrderStatusLoop(orderID int64) {
+	t.infof("starting sell order status loop for %v", orderID)
 	go func() {
 		for {
+			time.Sleep(time.Millisecond * 500)
 			status, err := t.getOrderStatus(orderID)
 			if err != nil {
 				t.infof("ERROR: %s", err.Error())
