@@ -80,7 +80,6 @@ func (t *traderManager) monitorBalances() {
 		var balances []sfox.SFOXBalance
 		var err error
 		for range time.Tick(5 * time.Second) {
-			t.LogInfo("updating balances")
 			client := t.SFOXClientPool.GetAPIClient()
 			balances, err = client.GetBalances()
 			if err != nil {
@@ -93,7 +92,6 @@ func (t *traderManager) monitorBalances() {
 				t.balances.m[tc.Currency(b.Currency)] = b.Available
 			}
 			t.balances.mtx.Unlock()
-			t.LogInfo(fmt.Sprintf("updated balances: %+v", t.balances))
 		}
 	}()
 }

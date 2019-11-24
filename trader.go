@@ -65,6 +65,7 @@ func (t *Trader) handleOrderbook(o tc.SFOXOrderbook) {
 	quoteBalance := t.getBalance(t.Config.Pair.Quote)
 	maxPosAmount := decimal.Min(quoteBalance, t.Config.MaxPositionAmount)
 	arb, err := FindArb(o, t.Config.FeeRateBps, t.Config.ProfitThresholdBps, maxPosAmount)
+	// t.infof(o.DescribeArb(t.Config.FeeRateBps))
 	if err == errNoArb && t.currentPosition == nil {
 		// do nothing - there is no arb, and we do not need to try to cut losses.
 		return
@@ -105,19 +106,21 @@ func (t *Trader) manageArbStrategy() {
 				// update fill information if anything has changed
 				if t.buyOrderStatus.FilledQuantity.Equal(t.currentPosition.Quantity) {
 					// complete fill:
-					t.infof("[buy] RECOGNIZED TOTAL FILL. FILLEDQUANTITY: ", t.buyOrderStatus.FilledQuantity.String())
+					t.infof("[buy] RECOGNIZED TOTAL FILL. FILLEDQUANTITY: %s", t.buyOrderStatus.FilledQuantity.String())
 					t.currentPosition.Status = STATUS_BUY_COMPLETE
 				} else {
-					t.infof("[buy] RECOGNIZED PARTIAL FILL. FILLEDQUANTITY: ", t.buyOrderStatus.FilledQuantity.String())
+					t.infof("[buy] RECOGNIZED PARTIAL FILL. FILLEDQUANTITY: %s", t.buyOrderStatus.FilledQuantity.String())
+					t.currentPosition.Status = STATUS_BUY_STARTED
 				}
 			case <-t.sellOrderStatusChan:
 				// update fill information if anything has changed
 				if t.sellOrderStatus.FilledQuantity.Equal(t.currentPosition.Quantity) {
 					// complete fill:
-					t.infof("[sell] RECOGNIZED TOTAL FILL. FILLEDQUANTITY: ", t.sellOrderStatus.FilledQuantity.String())
+					t.infof("[sell] RECOGNIZED TOTAL FILL. FILLEDQUANTITY: %s", t.sellOrderStatus.FilledQuantity.String())
 					t.currentPosition.Status = STATUS_SELL_COMPLETE
 				} else {
-					t.infof("[sell] RECOGNIZED PARTIAL FILL. FILLEDQUANTITY: ", t.sellOrderStatus.FilledQuantity.String())
+					t.infof("[sell] RECOGNIZED PARTIAL FILL. FILLEDQUANTITY: %s", t.sellOrderStatus.FilledQuantity.String())
+					t.currentPosition.Status = STATUS_SELL_STARTED
 				}
 			default:
 			}
@@ -141,25 +144,27 @@ func (t *Trader) manageArbStrategy() {
 				} else {
 					t.infof("unrecognized status: %s", statusLower)
 				}
-				continue
 			}
 			if t.currentPosition.Status == STATUS_BUY_COMPLETE {
 				// exit the position
+				t.infof("attempting to exit position")
 				sellOrder := NewSellOrderFromArbStrat(*t.currentPosition, t.buyOrderStatus.FilledQuantity)
 				status, err := t.executeOrder(*sellOrder)
 				if err != nil {
+					t.infof("error attempting to sell %s", err.Error())
 					continue
 				}
 				// determine status
 				statusLower := strings.ToLower(status.Status)
 				if statusLower == "started" {
+					t.infof("sell started")
 					t.currentPosition.Status = STATUS_SELL_STARTED
 					t.currentPosition.BuyTime = time.Now()
-					t.startBuyOrderStatusLoop(status.ID)
+					t.startSellOrderStatusLoop(status.ID)
 				} else {
-					t.infof("unrecognized status: %s", statusLower)
+					t.infof("order %v requires manual intervention - returned status %v", status.ID, statusLower)
 				}
-				continue
+	
 			}
 			if t.currentPosition.Status == STATUS_SELL_COMPLETE {
 				t.infof("ARB COMPLETE. PROFIT: %s%s", t.buyOrderStatus.FilledQuantity.Mul(t.buyOrderStatus.VWAP).Sub(t.sellOrderStatus.FilledQuantity.Mul(t.sellOrderStatus.VWAP)).String(), string(t.Config.Pair.Quote))
@@ -168,6 +173,7 @@ func (t *Trader) manageArbStrategy() {
 			if t.currentPosition.Status == STATUS_BUY_STARTED && time.Now().Sub(t.currentPosition.BuyTime).Seconds() > 8.0 {
 				// cancel if it's taking too long to fill our buy order
 				t.cancelOrder(t.buyOrderStatus.ID)
+				t.currentPosition = nil
 				return
 			}
 		}
@@ -184,6 +190,14 @@ func (t *Trader) startBuyOrderStatusLoop(orderID int64) {
 				t.infof("ERROR: %s", err.Error())
 				continue
 			}
+			if status.Status == "Canceled" {
+				return
+			}
+			if status.Status == "Done" {
+				t.buyOrderStatus = &status
+				t.buyOrderStatusChan <- true //notify the loop that there was an order status update
+				return
+			}
 			if t.buyOrderStatus == nil {
 				t.buyOrderStatus = &status
 				t.buyOrderStatusChan <- true //notify the loop that there was an order status update
@@ -193,11 +207,8 @@ func (t *Trader) startBuyOrderStatusLoop(orderID int64) {
 				t.buyOrderStatus = &status
 				t.buyOrderStatusChan <- true //notify the loop that there was an order status update
 				continue
-			} else if t.buyOrderStatus.Status == "done" {
-				t.buyOrderStatus = &status
-				t.buyOrderStatusChan <- true //notify the loop that there was an order status update
-				return
 			}
+
 		}
 	}()
 }
@@ -212,6 +223,14 @@ func (t *Trader) startSellOrderStatusLoop(orderID int64) {
 				t.infof("ERROR: %s", err.Error())
 				continue
 			}
+			if status.Status == "Canceled" {
+				return
+			}
+			if status.Status == "Done" {
+				t.sellOrderStatus = &status
+				t.sellOrderStatusChan <- true
+				return
+			}
 			if t.sellOrderStatus == nil {
 				t.sellOrderStatus = &status
 				t.sellOrderStatusChan <- true //notify the loop that there was an order status update
@@ -221,11 +240,8 @@ func (t *Trader) startSellOrderStatusLoop(orderID int64) {
 				t.sellOrderStatus = &status
 				t.sellOrderStatusChan <- true //notify the loop that there was an order status update
 				continue
-			} else if t.sellOrderStatus.Status == "done" {
-				t.sellOrderStatus = &status
-				t.sellOrderStatusChan <- true //notify the loop that there was an order status update
-				return
 			}
+
 		}
 	}()
 }
@@ -233,18 +249,21 @@ func (t *Trader) startSellOrderStatusLoop(orderID int64) {
 func (t *Trader) executeOrder(orderParams TraderOrder) (orderStatus sfoxapi.OrderStatusResponse, err error) {
 	client := t.manager.GetSFOXClient()
 	orderStatus, err = client.NewOrder(orderParams.Quantity, orderParams.LimitPrice, orderParams.AlgoID, orderParams.Pair.String(), string(orderParams.Side))
+	t.manager.ReturnSFOXClient(client)
 	return
 }
 
 func (t *Trader) getOrderStatus(id int64) (orderStatus sfoxapi.OrderStatusResponse, err error) {
 	client := t.manager.GetSFOXClient()
 	orderStatus, err = client.OrderStatus(id)
+	t.manager.ReturnSFOXClient(client)
 	return
 }
 
 func (t *Trader) cancelOrder(id int64) (err error) {
 	client := t.manager.GetSFOXClient()
 	err = client.CancelOrder(id)
+	t.manager.ReturnSFOXClient(client)
 	return
 }
 

@@ -26,26 +26,32 @@ var (
 	defaultConfigs = []TraderConfig{
 		TraderConfig{
 			Pair:               *tc.NewPair("btcusd"),
-			MaxPositionAmount:  decimal.New(15, 0), // 15 USD
-			ProfitThresholdBps: decimal.New(5, 0),
+			MaxPositionAmount:  decimal.New(25, 0), // 15 USD
+			ProfitThresholdBps: decimal.New(1, 0),
 			FeeRateBps:         decimal.New(175, -1),
 		},
 		TraderConfig{
 			Pair:               *tc.NewPair("etcusd"),
-			MaxPositionAmount:  decimal.New(15, 0), // 15 USD
-			ProfitThresholdBps: decimal.New(5, 0),
+			MaxPositionAmount:  decimal.New(25, 0), // 15 USD
+			ProfitThresholdBps: decimal.New(1, 0),
 			FeeRateBps:         decimal.New(175, -1),
 		},
 		TraderConfig{
 			Pair:               *tc.NewPair("bchusd"),
-			MaxPositionAmount:  decimal.New(15, 0), // 15 USD
-			ProfitThresholdBps: decimal.New(5, 0),
+			MaxPositionAmount:  decimal.New(25, 0), // 15 USD
+			ProfitThresholdBps: decimal.New(1, 0),
 			FeeRateBps:         decimal.New(175, -1),
 		},
 		TraderConfig{
 			Pair:               *tc.NewPair("ethusd"),
-			MaxPositionAmount:  decimal.New(15, 0), // 15 USD
-			ProfitThresholdBps: decimal.New(5, 0),
+			MaxPositionAmount:  decimal.New(25, 0), // 15 USD
+			ProfitThresholdBps: decimal.New(1, 0),
+			FeeRateBps:         decimal.New(175, -1),
+		},
+		TraderConfig{
+			Pair:               *tc.NewPair("ltcusd"),
+			MaxPositionAmount:  decimal.New(25, 0), // 15 USD
+			ProfitThresholdBps: decimal.New(1, 0),
 			FeeRateBps:         decimal.New(175, -1),
 		},
 	}

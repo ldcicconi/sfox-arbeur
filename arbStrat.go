@@ -69,10 +69,11 @@ func FindArb(inOb tc.SFOXOrderbook, feeRateBps, profitMinBps, maxPositionCost de
 			// if there is no arb at this price, there is definitely no arb at a worse price
 			break
 		}
-		sliceQuantity := decimal.Min(remainingAmount.Div(ask.Price), ask.Quantity)
+		askSliceQuantity := decimal.Min(remainingAmount.Div(ask.Price), ask.Quantity)
 		highestBuyPrice = ask.Price
+		cumulativeAskQuantitySold := decimal.Zero
 		for {
-			bidSliceQuantity = decimal.Min(o.Bids[bidIndex].Quantity, sliceQuantity) // this is the amount we can purchase from this offer and offload on this bid
+			bidSliceQuantity = decimal.Min(o.Bids[bidIndex].Quantity, askSliceQuantity) // this is the amount we can purchase from this ask and offload on this bid
 			o.Bids[bidIndex].Quantity = o.Bids[bidIndex].Quantity.Sub(bidSliceQuantity)
 			if !bidSliceQuantity.Equal(decimal.Zero) {
 				lowestSellPrice = o.Bids[bidIndex].Price
@@ -83,6 +84,7 @@ func FindArb(inOb tc.SFOXOrderbook, feeRateBps, profitMinBps, maxPositionCost de
 			cumulativeBuyCostWFees = cumulativeBuyCostWFees.Add(bidSliceQuantity.Mul(ask.Price).Mul(tc.One.Add(feeRateBps.Div(tc.OneE5))))
 			// update cumulative sold
 			cumulativeQuantitySold = cumulativeQuantitySold.Add(bidSliceQuantity)
+			cumulativeAskQuantitySold = cumulativeAskQuantitySold.Add(bidSliceQuantity)
 			cumulativeProceedsFromSale = cumulativeProceedsFromSale.Add(bidSliceQuantity.Mul(o.Bids[bidIndex].Price))
 			cumulativeProceedsFromSaleWFees = cumulativeProceedsFromSaleWFees.Add(bidSliceQuantity.Mul(o.Bids[bidIndex].Price).Mul(tc.One.Sub(feeRateBps.Div(tc.OneE5))))
 			// decrement quantity
@@ -94,7 +96,7 @@ func FindArb(inOb tc.SFOXOrderbook, feeRateBps, profitMinBps, maxPositionCost de
 				fmt.Println("BAD ERROR SHOULD NEVER HAPPEN")
 			}
 			// break if we've sold everything we bought, or if there is not an arb further into the book
-			if cumulativeQuantitySold.GreaterThanOrEqual(sliceQuantity) || !IsArbGreaterThanThreshold(ask.Price, o.Bids[bidIndex].Price, feeRateBps, profitMinBps) {
+			if cumulativeAskQuantitySold.GreaterThanOrEqual(askSliceQuantity) || !IsArbGreaterThanThreshold(ask.Price, o.Bids[bidIndex].Price, feeRateBps, profitMinBps) {
 				break
 			}
 		}
@@ -110,7 +112,9 @@ func FindArb(inOb tc.SFOXOrderbook, feeRateBps, profitMinBps, maxPositionCost de
 	sellVWAP := cumulativeProceedsFromSaleWFees.Div(cumulativeQuantitySold)
 	quantityToBuy := cumulativeQuantityBought.Mul(tc.One.Sub(feeRateBps.Div(tc.OneE5)))
 	profit := sellVWAP.Sub(buyVWAP).Mul(quantityToBuy)
-	if profit.LessThanOrEqual(decimal.Zero) {
+	profitBps := profit.Div(buyVWAP.Mul(quantityToBuy)).Mul(tc.OneE5)
+	// fmt.Println(inOb.Pair.String(), "arb: ", profitBps)
+	if profit.LessThanOrEqual(decimal.Zero) || profitBps.LessThan(profitMinBps) {
 		err = errNoArb
 		return
 	}
@@ -123,7 +127,7 @@ func FindArb(inOb tc.SFOXOrderbook, feeRateBps, profitMinBps, maxPositionCost de
 		SellLimitPrice: lowestSellPrice.Truncate(8),
 		Quantity:       quantityToBuy.Truncate(5),
 		ProfitGoal:     profit,
-		ProfitGoalBps:  profit.Div(buyVWAP.Mul(quantityToBuy)).Mul(tc.OneE5),
+		ProfitGoalBps:  profitBps,
 	}
 	return
 }
