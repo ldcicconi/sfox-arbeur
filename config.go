@@ -6,17 +6,22 @@ import (
 )
 
 type TraderConfig struct {
-	Pair               tc.Pair
-	MaxPositionAmount  decimal.Decimal // in quote currency of the pair
+	Pair tc.Pair
+	TradeLimits
+}
+
+type TradeLimits struct {
+	MinOrderQuantity   decimal.Decimal // in base currency
+	MaxOrderQuantity   decimal.Decimal // ''
+	MinOrderAmount     decimal.Decimal // in quote currency
+	MaxOrderAmount     decimal.Decimal // ''
 	ProfitThresholdBps decimal.Decimal
 	FeeRateBps         decimal.Decimal
 }
 
-func NewTraderConfig(pair tc.Pair, maxPosAmount, profitThreshold, feeRate decimal.Decimal) *TraderConfig {
+func NewTraderConfig(pair tc.Pair, limits TradeLimits) *TraderConfig {
 	return &TraderConfig{
-		Pair:               pair,
-		MaxPositionAmount:  maxPosAmount,
-		ProfitThresholdBps: profitThreshold,
-		FeeRateBps:         feeRate,
+		Pair:        pair,
+		TradeLimits: limits,
 	}
 }

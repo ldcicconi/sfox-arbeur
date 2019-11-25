@@ -45,7 +45,7 @@ const (
 )
 
 // TODO: needs to be tested
-func FindArb(inOb tc.SFOXOrderbook, feeRateBps, profitMinBps, maxPositionCost decimal.Decimal) (arb arbStrat, err error) {
+func FindArb(inOb tc.SFOXOrderbook, limits TradeLimits, availableQuoteBalance decimal.Decimal) (arb arbStrat, err error) {
 	o := inOb.MakeCopy()
 	priceArb := o.Arb()
 	if priceArb.LessThanOrEqual(decimal.Zero) {
@@ -61,15 +61,15 @@ func FindArb(inOb tc.SFOXOrderbook, feeRateBps, profitMinBps, maxPositionCost de
 	var cumulativeBuyCostWFees decimal.Decimal
 	var highestBuyPrice decimal.Decimal
 	var lowestSellPrice decimal.Decimal
-	remainingAmount := maxPositionCost
+	remainingAvailableQuote := decimal.Min(limits.MaxOrderAmount, availableQuoteBalance)
 
 	var bidSliceQuantity decimal.Decimal
 	for _, ask := range o.Asks {
-		if !IsArbGreaterThanThreshold(ask.Price, o.Bids[bidIndex].Price, feeRateBps, profitMinBps) {
+		if !IsArbGreaterThanThreshold(ask.Price, o.Bids[bidIndex].Price, limits.FeeRateBps, limits.ProfitThresholdBps) {
 			// if there is no arb at this price, there is definitely no arb at a worse price
 			break
 		}
-		askSliceQuantity := decimal.Min(remainingAmount.Div(ask.Price), ask.Quantity)
+		askSliceQuantity := decimal.Min(remainingAvailableQuote.Div(ask.Price), ask.Quantity)
 		highestBuyPrice = ask.Price
 		cumulativeAskQuantitySold := decimal.Zero
 		for {
@@ -81,14 +81,14 @@ func FindArb(inOb tc.SFOXOrderbook, feeRateBps, profitMinBps, maxPositionCost de
 			// update cumulative bought
 			cumulativeQuantityBought = cumulativeQuantityBought.Add(bidSliceQuantity)
 			cumulativeBuyCost = cumulativeBuyCost.Add(bidSliceQuantity.Mul(ask.Price))
-			cumulativeBuyCostWFees = cumulativeBuyCostWFees.Add(bidSliceQuantity.Mul(ask.Price).Mul(tc.One.Add(feeRateBps.Div(tc.OneE5))))
+			cumulativeBuyCostWFees = cumulativeBuyCostWFees.Add(bidSliceQuantity.Mul(ask.Price).Mul(tc.One.Add(limits.FeeRateBps.Div(tc.OneE5))))
 			// update cumulative sold
 			cumulativeQuantitySold = cumulativeQuantitySold.Add(bidSliceQuantity)
 			cumulativeAskQuantitySold = cumulativeAskQuantitySold.Add(bidSliceQuantity)
 			cumulativeProceedsFromSale = cumulativeProceedsFromSale.Add(bidSliceQuantity.Mul(o.Bids[bidIndex].Price))
-			cumulativeProceedsFromSaleWFees = cumulativeProceedsFromSaleWFees.Add(bidSliceQuantity.Mul(o.Bids[bidIndex].Price).Mul(tc.One.Sub(feeRateBps.Div(tc.OneE5))))
+			cumulativeProceedsFromSaleWFees = cumulativeProceedsFromSaleWFees.Add(bidSliceQuantity.Mul(o.Bids[bidIndex].Price).Mul(tc.One.Add(limits.FeeRateBps.Div(tc.OneE5))))
 			// decrement quantity
-			remainingAmount = remainingAmount.Sub(bidSliceQuantity.Mul(ask.Price))
+			remainingAvailableQuote = remainingAvailableQuote.Sub(bidSliceQuantity.Mul(ask.Price))
 			// incremement the bids if we've sold through one
 			if o.Bids[bidIndex].Quantity.Equal(decimal.Zero) {
 				bidIndex++
@@ -96,11 +96,11 @@ func FindArb(inOb tc.SFOXOrderbook, feeRateBps, profitMinBps, maxPositionCost de
 				fmt.Println("BAD ERROR SHOULD NEVER HAPPEN")
 			}
 			// break if we've sold everything we bought, or if there is not an arb further into the book
-			if cumulativeAskQuantitySold.GreaterThanOrEqual(askSliceQuantity) || !IsArbGreaterThanThreshold(ask.Price, o.Bids[bidIndex].Price, feeRateBps, profitMinBps) {
+			if cumulativeAskQuantitySold.GreaterThanOrEqual(askSliceQuantity) || !IsArbGreaterThanThreshold(ask.Price, o.Bids[bidIndex].Price, limits.FeeRateBps, limits.ProfitThresholdBps) {
 				break
 			}
 		}
-		if remainingAmount.Equal(decimal.Zero) {
+		if remainingAvailableQuote.Equal(decimal.Zero) {
 			break
 		}
 	}
@@ -110,22 +110,30 @@ func FindArb(inOb tc.SFOXOrderbook, feeRateBps, profitMinBps, maxPositionCost de
 	}
 	buyVWAP := cumulativeBuyCostWFees.Div(cumulativeQuantityBought)
 	sellVWAP := cumulativeProceedsFromSaleWFees.Div(cumulativeQuantitySold)
-	quantityToBuy := cumulativeQuantityBought.Mul(tc.One.Sub(feeRateBps.Div(tc.OneE5)))
-	profit := sellVWAP.Sub(buyVWAP).Mul(quantityToBuy)
-	profitBps := profit.Div(buyVWAP.Mul(quantityToBuy)).Mul(tc.OneE5)
-	// fmt.Println(inOb.Pair.String(), "arb: ", profitBps)
-	if profit.LessThanOrEqual(decimal.Zero) || profitBps.LessThan(profitMinBps) {
+	quantityToBuy := cumulativeQuantityBought.Mul(tc.One.Sub(limits.FeeRateBps.Div(tc.OneE5))).Truncate(5)
+	if quantityToBuy.LessThanOrEqual(decimal.Zero) {
 		err = errNoArb
 		return
 	}
-
+	profit := sellVWAP.Sub(buyVWAP).Mul(quantityToBuy)
+	profitBps := profit.Div(buyVWAP.Mul(quantityToBuy)).Mul(tc.OneE5)
+	buyLimit := highestBuyPrice.Truncate(8)
+	sellLimit := lowestSellPrice.Truncate(8)
+	// fmt.Println(inOb.Pair.String(), "arb: ", profitBps)
+	if profit.LessThanOrEqual(decimal.Zero) || profitBps.LessThan(limits.ProfitThresholdBps) ||
+		quantityToBuy.LessThan(limits.MinOrderQuantity) || quantityToBuy.GreaterThanOrEqual(limits.MaxOrderQuantity) ||
+		quantityToBuy.Mul(buyLimit).LessThan(limits.MinOrderAmount) {
+		err = errNoArb
+		return
+	}
+	// TODO: change quantity based on buy limit price + position size.
 	arb = arbStrat{
 		Pair:           o.Pair,
 		BuyPrice:       buyVWAP,
 		SellPrice:      sellVWAP,
-		BuyLimitPrice:  highestBuyPrice.Truncate(8),
-		SellLimitPrice: lowestSellPrice.Truncate(8),
-		Quantity:       quantityToBuy.Truncate(5),
+		BuyLimitPrice:  buyLimit,
+		SellLimitPrice: sellLimit,
+		Quantity:       quantityToBuy,
 		ProfitGoal:     profit,
 		ProfitGoalBps:  profitBps,
 	}

@@ -10,50 +10,71 @@ import (
 )
 
 var (
+	/*
+		WS config
+	*/
 	SFOXURL = url.URL{
 		Scheme: "wss",
 		Host:   "ws.sfox.com",
 		Path:   "ws",
 	}
-	defaultPairs = []string{
-		"btcusd",
-		// "etcbtc",
-		// "ethusd",
-		// "bchusd",
-		// "bchbtc",
-		// "ethbtc",
-	}
+
+	/*
+		Trader Configs
+	*/
+	// User-defined configs
+	profitThresholdBps    = decimal.New(15, 0)
+	USDQuotePairMaxAmount = decimal.New(25, 0)
+
+	// SFOX-defined limits
+	smartFee                = decimal.New(175, -1) // 17.5bps
+	USDQuotePairMinQuantity = decimal.New(1, -3)   // 0.001
+	USDQuotePairMinAmount   = decimal.New(5, 0)    // $5
+	BTCQuotePairMinQuantity = decimal.New(1, -3)
+	BTCQuotePairMinAmount   = decimal.New(1, -3)
+
 	defaultConfigs = []TraderConfig{
-		TraderConfig{
-			Pair:               *tc.NewPair("btcusd"),
-			MaxPositionAmount:  decimal.New(25, 0), // 15 USD
-			ProfitThresholdBps: decimal.New(1, 0),
-			FeeRateBps:         decimal.New(175, -1),
-		},
-		TraderConfig{
-			Pair:               *tc.NewPair("etcusd"),
-			MaxPositionAmount:  decimal.New(25, 0), // 15 USD
-			ProfitThresholdBps: decimal.New(1, 0),
-			FeeRateBps:         decimal.New(175, -1),
-		},
-		TraderConfig{
-			Pair:               *tc.NewPair("bchusd"),
-			MaxPositionAmount:  decimal.New(25, 0), // 15 USD
-			ProfitThresholdBps: decimal.New(1, 0),
-			FeeRateBps:         decimal.New(175, -1),
-		},
-		TraderConfig{
-			Pair:               *tc.NewPair("ethusd"),
-			MaxPositionAmount:  decimal.New(25, 0), // 15 USD
-			ProfitThresholdBps: decimal.New(1, 0),
-			FeeRateBps:         decimal.New(175, -1),
-		},
-		TraderConfig{
-			Pair:               *tc.NewPair("ltcusd"),
-			MaxPositionAmount:  decimal.New(25, 0), // 15 USD
-			ProfitThresholdBps: decimal.New(1, 0),
-			FeeRateBps:         decimal.New(175, -1),
-		},
+
+		*NewTraderConfig(*tc.NewPair("btcusd"), TradeLimits{
+			MinOrderQuantity:   USDQuotePairMinQuantity,
+			MaxOrderQuantity:   decimal.New(1, 0),
+			MinOrderAmount:     USDQuotePairMinAmount,
+			MaxOrderAmount:     USDQuotePairMaxAmount,
+			ProfitThresholdBps: profitThresholdBps,
+			FeeRateBps:         smartFee,
+		}),
+		*NewTraderConfig(*tc.NewPair("etcusd"), TradeLimits{
+			MinOrderQuantity:   USDQuotePairMinQuantity,
+			MaxOrderQuantity:   decimal.New(100, 0),
+			MinOrderAmount:     USDQuotePairMinAmount,
+			MaxOrderAmount:     USDQuotePairMaxAmount,
+			ProfitThresholdBps: profitThresholdBps,
+			FeeRateBps:         smartFee,
+		}),
+		*NewTraderConfig(*tc.NewPair("ethusd"), TradeLimits{
+			MinOrderQuantity:   USDQuotePairMinQuantity,
+			MaxOrderQuantity:   decimal.New(100, 0),
+			MinOrderAmount:     USDQuotePairMinAmount,
+			MaxOrderAmount:     USDQuotePairMaxAmount,
+			ProfitThresholdBps: profitThresholdBps,
+			FeeRateBps:         smartFee,
+		}),
+		*NewTraderConfig(*tc.NewPair("ltcusd"), TradeLimits{
+			MinOrderQuantity:   USDQuotePairMinQuantity,
+			MaxOrderQuantity:   decimal.New(100, 0),
+			MinOrderAmount:     USDQuotePairMinAmount,
+			MaxOrderAmount:     USDQuotePairMaxAmount,
+			ProfitThresholdBps: profitThresholdBps,
+			FeeRateBps:         smartFee,
+		}),
+		*NewTraderConfig(*tc.NewPair("bchusd"), TradeLimits{
+			MinOrderQuantity:   USDQuotePairMinQuantity,
+			MaxOrderQuantity:   decimal.New(100, 0),
+			MinOrderAmount:     USDQuotePairMinAmount,
+			MaxOrderAmount:     USDQuotePairMaxAmount,
+			ProfitThresholdBps: profitThresholdBps,
+			FeeRateBps:         smartFee,
+		}),
 	}
 )
 

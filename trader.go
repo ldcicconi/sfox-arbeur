@@ -18,10 +18,13 @@ type Trader struct {
 	Logger              *log.Logger
 	manager             *traderManager
 	currentPosition     *arbStrat
+	errCount            int
 	killChan            chan bool // the arbMonitor loop listens on this, and will exit the position if signalled
 	buyOrderStatus      *sfoxapi.OrderStatusResponse
-	buyOrderStatusChan  chan bool // a goroutine notifies the main arbMonitor of buy order updates through this chan
+	buyOrderStatusChan  chan bool // a goroutine notifies the main arbMonitor of buy order updates through this chan\
+	buyLoopKillChan     chan bool
 	sellOrderStatus     *sfoxapi.OrderStatusResponse
+	sellLoopKillChan    chan bool
 	sellOrderStatusChan chan bool
 }
 
@@ -34,6 +37,8 @@ func NewTrader(config TraderConfig, logger *log.Logger, manager *traderManager) 
 		killChan:            make(chan bool),
 		buyOrderStatusChan:  make(chan bool),
 		sellOrderStatusChan: make(chan bool),
+		buyLoopKillChan:     make(chan bool),
+		sellLoopKillChan:    make(chan bool),
 	}
 }
 
@@ -63,8 +68,7 @@ func (t *Trader) logLatency(ob tc.SFOXOrderbook) {
 
 func (t *Trader) handleOrderbook(o tc.SFOXOrderbook) {
 	quoteBalance := t.getBalance(t.Config.Pair.Quote)
-	maxPosAmount := decimal.Min(quoteBalance, t.Config.MaxPositionAmount)
-	arb, err := FindArb(o, t.Config.FeeRateBps, t.Config.ProfitThresholdBps, maxPosAmount)
+	arb, err := FindArb(o, t.Config.TradeLimits, quoteBalance)
 	// t.infof(o.DescribeArb(t.Config.FeeRateBps))
 	if err == errNoArb && t.currentPosition == nil {
 		// do nothing - there is no arb, and we do not need to try to cut losses.
@@ -91,14 +95,17 @@ func (t *Trader) handleOrderbook(o tc.SFOXOrderbook) {
 
 func (t *Trader) manageArbStrategy() {
 	go func() {
+		t.errCount = 0
 		for {
 			select {
 			case <-t.killChan:
 				// exit the position
 				if t.currentPosition.Status == STATUS_BUY_STARTED {
 					t.cancelOrder(t.buyOrderStatus.ID)
+					t.buyLoopKillChan <- true
 				} else if t.currentPosition.Status == STATUS_SELL_STARTED {
 					t.cancelOrder(t.sellOrderStatus.ID)
+					t.sellLoopKillChan <- true
 				}
 				return
 			case <-t.buyOrderStatusChan:
@@ -124,6 +131,12 @@ func (t *Trader) manageArbStrategy() {
 				}
 			default:
 			}
+			if t.errCount > 5 {
+				t.currentPosition = nil
+				t.buyOrderStatus = nil
+				t.sellOrderStatus = nil
+				return
+			}
 			if t.currentPosition.Status == STATUS_INIT {
 				// enter the position
 				buyOrder := NewBuyOrderFromArbStrat(*t.currentPosition)
@@ -131,6 +144,7 @@ func (t *Trader) manageArbStrategy() {
 				status, err := t.executeOrder(*buyOrder)
 				if err != nil {
 					t.infof("error attempting to buy %s", err.Error())
+					t.errCount++
 					continue
 				}
 				t.infof("buy request successful!")
@@ -146,12 +160,14 @@ func (t *Trader) manageArbStrategy() {
 				}
 			}
 			if t.currentPosition.Status == STATUS_BUY_COMPLETE {
+				t.errCount = 0
 				// exit the position
 				t.infof("attempting to exit position")
 				sellOrder := NewSellOrderFromArbStrat(*t.currentPosition, t.buyOrderStatus.FilledQuantity)
 				status, err := t.executeOrder(*sellOrder)
 				if err != nil {
 					t.infof("error attempting to sell %s", err.Error())
+					t.errCount++
 					continue
 				}
 				// determine status
@@ -164,7 +180,7 @@ func (t *Trader) manageArbStrategy() {
 				} else {
 					t.infof("order %v requires manual intervention - returned status %v", status.ID, statusLower)
 				}
-	
+
 			}
 			if t.currentPosition.Status == STATUS_SELL_COMPLETE {
 				t.infof("ARB COMPLETE. PROFIT: %s%s", t.buyOrderStatus.FilledQuantity.Mul(t.buyOrderStatus.VWAP).Sub(t.sellOrderStatus.FilledQuantity.Mul(t.sellOrderStatus.VWAP)).String(), string(t.Config.Pair.Quote))
