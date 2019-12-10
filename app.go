@@ -27,6 +27,7 @@ func NewApp(wsURL url.URL, wsSubMessage interface{}, wsIsSecure bool, sfoxAPIKey
 		rawDataChan:   make(chan ws.MessageEnvelope),
 		orderbookChan: make(chan tc.SFOXOrderbook),
 	}
+
 }
 
 func NewSFOXArbApp(pairConfigs []TraderConfig, SFOXAPIKeys []string) *app {

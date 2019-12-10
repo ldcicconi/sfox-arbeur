@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -17,15 +18,11 @@ type Trader struct {
 	Config              TraderConfig
 	Logger              *log.Logger
 	manager             *traderManager
-	currentPosition     *arbStrat
 	errCount            int
-	killChan            chan bool // the arbMonitor loop listens on this, and will exit the position if signalled
-	buyOrderStatus      *sfoxapi.OrderStatusResponse
-	buyOrderStatusChan  chan bool // a goroutine notifies the main arbMonitor of buy order updates through this chan\
-	buyLoopKillChan     chan bool
-	sellOrderStatus     *sfoxapi.OrderStatusResponse
-	sellLoopKillChan    chan bool
-	sellOrderStatusChan chan bool
+	arbLocker           uint32                           // ensure that trader only runs one arb at a time
+	killChan            chan bool                        // the arbMonitor loop listens on this, and will exit the position if signalled
+	buyOrderStatusChan  chan sfoxapi.OrderStatusResponse // a goroutine notifies the main arbMonitor of buy order updates through this chan
+	sellOrderStatusChan chan sfoxapi.OrderStatusResponse
 }
 
 func NewTrader(config TraderConfig, logger *log.Logger, manager *traderManager) *Trader {
@@ -35,10 +32,8 @@ func NewTrader(config TraderConfig, logger *log.Logger, manager *traderManager) 
 		Logger:              logger,
 		manager:             manager,
 		killChan:            make(chan bool),
-		buyOrderStatusChan:  make(chan bool),
-		sellOrderStatusChan: make(chan bool),
-		buyLoopKillChan:     make(chan bool),
-		sellLoopKillChan:    make(chan bool),
+		buyOrderStatusChan:  make(chan sfoxapi.OrderStatusResponse),
+		sellOrderStatusChan: make(chan sfoxapi.OrderStatusResponse),
 	}
 }
 
@@ -49,6 +44,7 @@ func (t *Trader) Start() {
 func (t *Trader) monitorOrderbooks() {
 	go func() {
 		for o := range t.OrderbookChan {
+			t.infof(o.DescribeArb(t.Config.FeeRateBps))
 			t.handleOrderbook(o)
 		}
 	}()
@@ -66,80 +62,86 @@ func (t *Trader) logLatency(ob tc.SFOXOrderbook) {
 	t.infof("LATENCY internal: %s network: %s total: %s", internalLatency.String(), networkLatency.String(), totalTime.String())
 }
 
+func (t *Trader) arbActive() bool {
+	if !atomic.CompareAndSwapUint32(&t.arbLocker, 0, 1) {
+		return true
+	}
+	return false
+}
+
 func (t *Trader) handleOrderbook(o tc.SFOXOrderbook) {
 	quoteBalance := t.getBalance(t.Config.Pair.Quote)
 	arb, err := FindArb(o, t.Config.TradeLimits, quoteBalance)
 	// t.infof(o.DescribeArb(t.Config.FeeRateBps))
-	if err == errNoArb && t.currentPosition == nil {
-		// do nothing - there is no arb, and we do not need to try to cut losses.
+	if err == errNoArb && !t.arbActive() {
+		// do nothing - there is no arb, and we do not need to try to cut losses as we are not in a position
 		return
 	}
-	if err == errNoArb && t.currentPosition != nil {
+	if err == errNoArb && t.arbActive() {
 		// we might want to cut losses - think about this later
 		// t.killChan <- true
 		return
 	}
-	if err == nil && t.currentPosition == nil {
+	if err == nil && !t.arbActive() {
 		// enter into a position, as there is a profitable arb opportunity, per our parameters
 		t.infof("found a profitable arb: %+v", arb)
-		t.currentPosition = &arb
-		t.manageArbStrategy()
+		t.manageArbStrategy(arb)
 		return
 	}
-	if err == nil && t.currentPosition != nil {
+	if err == nil && t.arbActive() {
 		// do nothing - we are in the middle of trying to exit an arb.
 		return
 	}
-
 }
 
-func (t *Trader) manageArbStrategy() {
+func (t *Trader) manageArbStrategy(arb arbStrat) {
 	go func() {
 		t.errCount = 0
+		defer atomic.StoreUint32(&t.arbLocker, 0)
+		var buyOrderStatus sfoxapi.OrderStatusResponse
+		var sellOrderStatus sfoxapi.OrderStatusResponse
+		killChan := make(chan struct{})
 		for {
 			select {
 			case <-t.killChan:
 				// exit the position
-				if t.currentPosition.Status == STATUS_BUY_STARTED {
-					t.cancelOrder(t.buyOrderStatus.ID)
-					t.buyLoopKillChan <- true
-				} else if t.currentPosition.Status == STATUS_SELL_STARTED {
-					t.cancelOrder(t.sellOrderStatus.ID)
-					t.sellLoopKillChan <- true
+				if arb.Status == STATUS_BUY_STARTED {
+					t.cancelOrder(buyOrderStatus.ID)
+					killChan <- struct{}{}
+				} else if arb.Status == STATUS_SELL_STARTED {
+					t.cancelOrder(sellOrderStatus.ID)
+					killChan <- struct{}{}
 				}
 				return
-			case <-t.buyOrderStatusChan:
+			case buyOrderStatus = <-t.buyOrderStatusChan:
 				fmt.Println("update from buy order status channel")
 				// update fill information if anything has changed
-				if t.buyOrderStatus.FilledQuantity.Equal(t.currentPosition.Quantity) {
+				if buyOrderStatus.FilledQuantity.Equal(arb.Quantity) {
 					// complete fill:
-					t.infof("[buy] RECOGNIZED TOTAL FILL. FILLEDQUANTITY: %s", t.buyOrderStatus.FilledQuantity.String())
-					t.currentPosition.Status = STATUS_BUY_COMPLETE
+					t.infof("[buy] RECOGNIZED TOTAL FILL. FILLEDQUANTITY: %s", buyOrderStatus.FilledQuantity.String())
+					arb.Status = STATUS_BUY_COMPLETE
 				} else {
-					t.infof("[buy] RECOGNIZED PARTIAL FILL. FILLEDQUANTITY: %s", t.buyOrderStatus.FilledQuantity.String())
-					t.currentPosition.Status = STATUS_BUY_STARTED
+					t.infof("[buy] RECOGNIZED PARTIAL FILL. FILLEDQUANTITY: %s", buyOrderStatus.FilledQuantity.String())
+					arb.Status = STATUS_BUY_STARTED
 				}
-			case <-t.sellOrderStatusChan:
+			case sellOrderStatus = <-t.sellOrderStatusChan:
 				// update fill information if anything has changed
-				if t.sellOrderStatus.FilledQuantity.Equal(t.currentPosition.Quantity) {
+				if sellOrderStatus.FilledQuantity.Equal(arb.Quantity) {
 					// complete fill:
-					t.infof("[sell] RECOGNIZED TOTAL FILL. FILLEDQUANTITY: %s", t.sellOrderStatus.FilledQuantity.String())
-					t.currentPosition.Status = STATUS_SELL_COMPLETE
+					t.infof("[sell] RECOGNIZED TOTAL FILL. FILLEDQUANTITY: %s", sellOrderStatus.FilledQuantity.String())
+					arb.Status = STATUS_SELL_COMPLETE
 				} else {
-					t.infof("[sell] RECOGNIZED PARTIAL FILL. FILLEDQUANTITY: %s", t.sellOrderStatus.FilledQuantity.String())
-					t.currentPosition.Status = STATUS_SELL_STARTED
+					t.infof("[sell] RECOGNIZED PARTIAL FILL. FILLEDQUANTITY: %s", sellOrderStatus.FilledQuantity.String())
+					arb.Status = STATUS_SELL_STARTED
 				}
 			default:
 			}
 			if t.errCount > 5 {
-				t.currentPosition = nil
-				t.buyOrderStatus = nil
-				t.sellOrderStatus = nil
 				return
 			}
-			if t.currentPosition.Status == STATUS_INIT {
+			if arb.Status == STATUS_INIT {
 				// enter the position
-				buyOrder := NewBuyOrderFromArbStrat(*t.currentPosition)
+				buyOrder := NewBuyOrderFromArbStrat(arb)
 				t.infof("attempting to buy %+v", buyOrder)
 				status, err := t.executeOrder(*buyOrder)
 				if err != nil {
@@ -152,18 +154,18 @@ func (t *Trader) manageArbStrategy() {
 				statusLower := strings.ToLower(status.Status)
 				if statusLower == "started" {
 					t.infof("buy started")
-					t.currentPosition.Status = STATUS_BUY_STARTED
-					t.currentPosition.BuyTime = time.Now()
-					t.startBuyOrderStatusLoop(status.ID)
+					arb.Status = STATUS_BUY_STARTED
+					arb.BuyTime = time.Now()
+					t.startOrderStatusLoop(status.ID, t.buyOrderStatusChan, killChan)
 				} else {
 					t.infof("unrecognized status: %s", statusLower)
 				}
 			}
-			if t.currentPosition.Status == STATUS_BUY_COMPLETE {
+			if arb.Status == STATUS_BUY_COMPLETE {
 				t.errCount = 0
 				// exit the position
 				t.infof("attempting to exit position")
-				sellOrder := NewSellOrderFromArbStrat(*t.currentPosition, t.buyOrderStatus.FilledQuantity)
+				sellOrder := NewSellOrderFromArbStrat(arb, buyOrderStatus.FilledQuantity)
 				status, err := t.executeOrder(*sellOrder)
 				if err != nil {
 					t.infof("error attempting to sell %s", err.Error())
@@ -174,90 +176,55 @@ func (t *Trader) manageArbStrategy() {
 				statusLower := strings.ToLower(status.Status)
 				if statusLower == "started" {
 					t.infof("sell started")
-					t.currentPosition.Status = STATUS_SELL_STARTED
-					t.currentPosition.BuyTime = time.Now()
-					t.startSellOrderStatusLoop(status.ID)
+					arb.Status = STATUS_SELL_STARTED
+					arb.BuyTime = time.Now()
+					t.startOrderStatusLoop(status.ID, t.sellOrderStatusChan, killChan)
 				} else {
 					t.infof("order %v requires manual intervention - returned status %v", status.ID, statusLower)
 				}
 
 			}
-			if t.currentPosition.Status == STATUS_SELL_COMPLETE {
-				t.infof("ARB COMPLETE. PROFIT: %s%s", t.buyOrderStatus.FilledQuantity.Mul(t.buyOrderStatus.VWAP).Sub(t.sellOrderStatus.FilledQuantity.Mul(t.sellOrderStatus.VWAP)).String(), string(t.Config.Pair.Quote))
+			if arb.Status == STATUS_SELL_COMPLETE {
+				t.infof("ARB COMPLETE. PROFIT: %s%s", buyOrderStatus.FilledQuantity.Mul(buyOrderStatus.VWAP).Sub(sellOrderStatus.FilledQuantity.Mul(sellOrderStatus.VWAP)).String(), string(t.Config.Pair.Quote))
 				return
 			}
-			if t.currentPosition.Status == STATUS_BUY_STARTED && time.Now().Sub(t.currentPosition.BuyTime).Seconds() > 8.0 {
+			if arb.Status == STATUS_BUY_STARTED && time.Now().Sub(arb.BuyTime).Seconds() > 8.0 {
 				// cancel if it's taking too long to fill our buy order
-				t.cancelOrder(t.buyOrderStatus.ID)
-				t.currentPosition = nil
+				t.cancelOrder(buyOrderStatus.ID)
 				return
 			}
 		}
 	}()
 }
 
-func (t *Trader) startBuyOrderStatusLoop(orderID int64) {
+func (t *Trader) startOrderStatusLoop(orderID int64, statusChannel chan sfoxapi.OrderStatusResponse, killChan chan struct{}) {
 	t.infof("starting buy order status loop for %v", orderID)
+	var lastOrderStatus sfoxapi.OrderStatusResponse
 	go func() {
 		for {
+			select {
+			case <-killChan:
+				return
+			default:
+			}
 			time.Sleep(time.Millisecond * 500)
-			status, err := t.getOrderStatus(orderID)
+			newOrderStatus, err := t.getOrderStatus(orderID)
 			if err != nil {
 				t.infof("ERROR: %s", err.Error())
 				continue
 			}
-			if status.Status == "Canceled" {
+			if newOrderStatus.Status == "Canceled" {
 				return
 			}
-			if status.Status == "Done" {
-				t.buyOrderStatus = &status
-				t.buyOrderStatusChan <- true //notify the loop that there was an order status update
+			if newOrderStatus.Status == "Done" {
+				statusChannel <- newOrderStatus //notify the loop that there was an order status update
 				return
 			}
-			if t.buyOrderStatus == nil {
-				t.buyOrderStatus = &status
-				t.buyOrderStatusChan <- true //notify the loop that there was an order status update
+			if newOrderStatus.FilledQuantity.GreaterThan(lastOrderStatus.FilledQuantity) {
+				statusChannel <- newOrderStatus //notify the loop that there was an order status update
 				continue
 			}
-			if status.FilledQuantity.GreaterThan(t.buyOrderStatus.FilledQuantity) {
-				t.buyOrderStatus = &status
-				t.buyOrderStatusChan <- true //notify the loop that there was an order status update
-				continue
-			}
-
-		}
-	}()
-}
-
-func (t *Trader) startSellOrderStatusLoop(orderID int64) {
-	t.infof("starting sell order status loop for %v", orderID)
-	go func() {
-		for {
-			time.Sleep(time.Millisecond * 500)
-			status, err := t.getOrderStatus(orderID)
-			if err != nil {
-				t.infof("ERROR: %s", err.Error())
-				continue
-			}
-			if status.Status == "Canceled" {
-				return
-			}
-			if status.Status == "Done" {
-				t.sellOrderStatus = &status
-				t.sellOrderStatusChan <- true
-				return
-			}
-			if t.sellOrderStatus == nil {
-				t.sellOrderStatus = &status
-				t.sellOrderStatusChan <- true //notify the loop that there was an order status update
-				continue
-			}
-			if status.FilledQuantity.GreaterThan(t.sellOrderStatus.FilledQuantity) {
-				t.sellOrderStatus = &status
-				t.sellOrderStatusChan <- true //notify the loop that there was an order status update
-				continue
-			}
-
+			lastOrderStatus = newOrderStatus
 		}
 	}()
 }

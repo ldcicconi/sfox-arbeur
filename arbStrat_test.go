@@ -137,25 +137,25 @@ var (
 )
 
 func AreArbsIdentical(arb1, arb2 arbStrat) bool {
-	if !arb1.BuyPrice.Round(4).Equal(arb2.BuyPrice.Round(4)) {
+	if !arb1.BuyPrice.Truncate(4).Equal(arb2.BuyPrice.Truncate(4)) {
 		return false
 	}
-	if !arb1.SellPrice.Round(4).Equal(arb2.SellPrice.Round(4)) {
+	if !arb1.SellPrice.Truncate(4).Equal(arb2.SellPrice.Truncate(4)) {
 		return false
 	}
-	if !arb1.BuyLimitPrice.Round(4).Equal(arb2.BuyLimitPrice.Round(4)) {
+	if !arb1.BuyLimitPrice.Truncate(4).Equal(arb2.BuyLimitPrice.Truncate(4)) {
 		return false
 	}
-	if !arb1.SellLimitPrice.Round(4).Equal(arb2.SellLimitPrice.Round(4)) {
+	if !arb1.SellLimitPrice.Truncate(4).Equal(arb2.SellLimitPrice.Truncate(4)) {
 		return false
 	}
-	if !arb1.ProfitGoal.Round(4).Equal(arb2.ProfitGoal.Round(4)) {
+	if !arb1.ProfitGoal.Truncate(4).Equal(arb2.ProfitGoal.Truncate(4)) {
 		return false
 	}
-	if !arb1.ProfitGoalBps.Round(4).Equal(arb2.ProfitGoalBps.Round(4)) {
+	if !arb1.ProfitGoalBps.Truncate(4).Equal(arb2.ProfitGoalBps.Truncate(4)) {
 		return false
 	}
-	if !arb1.Quantity.Round(4).Equal(arb2.Quantity.Round(4)) {
+	if !arb1.Quantity.Truncate(4).Equal(arb2.Quantity.Truncate(4)) {
 		return false
 	}
 	if arb1.Pair.String() != arb2.Pair.String() {
@@ -193,12 +193,12 @@ func TestSimpleArb(t *testing.T) {
 	arb1, err := FindArb(testOrderbookTwo, testLimits, decimal.New(800, 0)) // 800 + no fee means we can buy the entire offer
 	expectedArb1 := arbStrat{
 		Pair:           *tc.NewPair("btcusd"),
-		BuyPrice:       decimal.New(100, 0),
-		SellPrice:      decimal.New(101, 0),
+		BuyPrice:       decimal.New(1001, -1),
+		SellPrice:      decimal.New(101101, -3),
 		BuyLimitPrice:  decimal.New(100, 0),
 		SellLimitPrice: decimal.New(101, 0),
-		Quantity:       decimal.New(8, 0),
-		ProfitGoal:     decimal.New(8, 0), // $1 on each btc purchased
+		Quantity:       decimal.New(7992, -3),
+		ProfitGoal:     decimal.New(79999, -4), // ~$1 on each btc purchased
 		ProfitGoalBps:  decimal.New(100, 0),
 	}
 	if err == errNoArb {
@@ -211,12 +211,12 @@ func TestSimpleArb(t *testing.T) {
 	arb2, err := FindArb(testOrderbookTwo, testLimits, decimal.New(500, 0))
 	expectedArb2 := arbStrat{
 		Pair:           *tc.NewPair("btcusd"),
-		BuyPrice:       decimal.New(100, 0),
-		SellPrice:      decimal.New(101, 0),
+		BuyPrice:       decimal.New(1001, -1),
+		SellPrice:      decimal.New(101101, -3),
 		BuyLimitPrice:  decimal.New(100, 0),
 		SellLimitPrice: decimal.New(101, 0),
-		Quantity:       decimal.New(5, 0),
-		ProfitGoal:     decimal.New(5, 0), // $1 on each btc purchased
+		Quantity:       decimal.New(4995, -3),
+		ProfitGoal:     decimal.New(49999, -4), // $1 on each btc purchased
 		ProfitGoalBps:  decimal.New(100, 0),
 	}
 	if err == errNoArb {
