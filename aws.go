@@ -8,7 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/secretsmanager"
 )
 
-var awsSFOXAPIKeysID = "SFOX_API_KEYS_EC2"
+var awsSFOXAPIKeysID = "sfox-keys"
 
 func getAPIKeysFromAWSSecrets() ([]string, error) {
 	awsSession := session.Must(session.NewSession())
