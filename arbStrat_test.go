@@ -197,8 +197,8 @@ func TestSimpleArb(t *testing.T) {
 		SellPrice:      decimal.New(101101, -3),
 		BuyLimitPrice:  decimal.New(100, 0),
 		SellLimitPrice: decimal.New(101, 0),
-		Quantity:       decimal.New(7992, -3),
-		ProfitGoal:     decimal.New(79999, -4), // ~$1 on each btc purchased
+		Quantity:       decimal.New(8, 0),
+		ProfitGoal:     decimal.New(8008, -3), // ~$1 on each btc purchased
 		ProfitGoalBps:  decimal.New(100, 0),
 	}
 	if err == errNoArb {
@@ -215,8 +215,8 @@ func TestSimpleArb(t *testing.T) {
 		SellPrice:      decimal.New(101101, -3),
 		BuyLimitPrice:  decimal.New(100, 0),
 		SellLimitPrice: decimal.New(101, 0),
-		Quantity:       decimal.New(4995, -3),
-		ProfitGoal:     decimal.New(49999, -4), // $1 on each btc purchased
+		Quantity:       decimal.New(5, 0),
+		ProfitGoal:     decimal.New(5005, -3), // $1 on each btc purchased
 		ProfitGoalBps:  decimal.New(100, 0),
 	}
 	if err == errNoArb {

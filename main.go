@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/url"
 	"os"
 	"strings"
@@ -78,14 +79,15 @@ var (
 	}
 )
 
-func getAPIKeysFromEnv() []string {
+func getAPIKeysFromEnv() ([]string, error) {
 	keysString := os.Getenv("SFOX_API_KEYS")
-	return strings.Split(keysString, ",")
+	return strings.Split(keysString, ","), nil
 }
 
 func main() {
 	apiKeys, err := getAPIKeysFromAWSSecrets()
 	if err != nil {
+		fmt.Println("[startup] failure to get API Keys:", err)
 		os.Exit(1)
 		return
 	}
