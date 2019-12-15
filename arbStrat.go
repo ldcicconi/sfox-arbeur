@@ -116,7 +116,7 @@ func FindArb(inOb tc.SFOXOrderbook, limits TradeLimits, availableQuoteBalance de
 		return
 	}
 	profit := sellVWAP.Sub(buyVWAP).Mul(quantityToBuy)
-	profitBps := profit.Div(buyVWAP.Mul(quantityToBuy)).Mul(tc.OneE5)
+	profitBps := sellVWAP.Sub(buyVWAP).Div(buyVWAP).Mul(tc.OneE5)
 	buyLimit := highestBuyPrice.Truncate(8)
 	sellLimit := lowestSellPrice.Truncate(8)
 	// fmt.Println(inOb.Pair.String(), "arb: ", profitBps)

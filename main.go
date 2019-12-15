@@ -84,7 +84,12 @@ func getAPIKeysFromEnv() []string {
 }
 
 func main() {
-	myApp := NewSFOXArbApp(defaultConfigs, getAPIKeysFromEnv())
+	apiKeys, err := getAPIKeysFromAWSSecrets()
+	if err != nil {
+		os.Exit(1)
+		return
+	}
+	myApp := NewSFOXArbApp(defaultConfigs, apiKeys)
 	myApp.Start()
 	forever := make(chan bool)
 	<-forever

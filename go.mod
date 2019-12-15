@@ -3,6 +3,7 @@ module github.com/ldcicconi/sfox-arbeur
 go 1.13
 
 require (
+	github.com/aws/aws-sdk-go v1.19.39
 	github.com/ldcicconi/sfox-api-lib v0.0.0-20191105013720-071b742f3394
 	github.com/ldcicconi/trading-common v0.0.0-20191106221151-6aebe24e685c
 	github.com/ldcicconi/ws-contractor v0.0.0-20191104022244-6373f917fe44
