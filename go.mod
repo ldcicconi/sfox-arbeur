@@ -3,10 +3,10 @@ module github.com/ldcicconi/sfox-arbeur
 go 1.13
 
 require (
-	github.com/ldcicconi/sfox-api-lib v0.0.0-20191105013720-071b742f3394
-	github.com/ldcicconi/trading-common v0.0.0-20191106221151-6aebe24e685c
-	github.com/ldcicconi/ws-contractor v0.0.0-20191104022244-6373f917fe44
-	github.com/shopspring/decimal v0.0.0-20191009025716-f1972eb1d1f5
+	github.com/ldcicconi/sfox-api-lib v0.0.0-20191124083754-1da86f673760
+	github.com/ldcicconi/trading-common v0.0.0-20191215214922-a5a06fd13e10
+	github.com/ldcicconi/ws-contractor v0.0.0-20191110170019-88afc346ecef
+	github.com/shopspring/decimal v0.0.0-20191130220710-360f2bc03045
 	github.com/valyala/fastjson v1.4.1
 )
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/url"
 	"os"
 	"strings"
@@ -78,13 +79,19 @@ var (
 	}
 )
 
-func getAPIKeysFromEnv() []string {
+func getAPIKeysFromEnv() ([]string, error) {
 	keysString := os.Getenv("SFOX_API_KEYS")
-	return strings.Split(keysString, ",")
+	return strings.Split(keysString, ","), nil
 }
 
 func main() {
-	myApp := NewSFOXArbApp(defaultConfigs, getAPIKeysFromEnv())
+	apiKeys, err := getAPIKeysFromEnv()
+	if err != nil {
+		fmt.Println("[startup] failure to get API Keys:", err)
+		os.Exit(1)
+		return
+	}
+	myApp := NewSFOXArbApp(defaultConfigs, apiKeys)
 	myApp.Start()
 	forever := make(chan bool)
 	<-forever

@@ -75,9 +75,7 @@ func FindArb(inOb tc.SFOXOrderbook, limits TradeLimits, availableQuoteBalance de
 		for {
 			bidSliceQuantity = decimal.Min(o.Bids[bidIndex].Quantity, askSliceQuantity) // this is the amount we can purchase from this ask and offload on this bid
 			o.Bids[bidIndex].Quantity = o.Bids[bidIndex].Quantity.Sub(bidSliceQuantity)
-			if !bidSliceQuantity.Equal(decimal.Zero) {
-				lowestSellPrice = o.Bids[bidIndex].Price
-			}
+			lowestSellPrice = o.Bids[bidIndex].Price
 			// update cumulative bought
 			cumulativeQuantityBought = cumulativeQuantityBought.Add(bidSliceQuantity)
 			cumulativeBuyCost = cumulativeBuyCost.Add(bidSliceQuantity.Mul(ask.Price))
@@ -110,7 +108,8 @@ func FindArb(inOb tc.SFOXOrderbook, limits TradeLimits, availableQuoteBalance de
 	}
 	buyVWAP := cumulativeBuyCostWFees.Div(cumulativeQuantityBought)
 	sellVWAP := cumulativeProceedsFromSaleWFees.Div(cumulativeQuantitySold)
-	quantityToBuy := cumulativeQuantityBought.Mul(tc.One.Sub(limits.FeeRateBps.Div(tc.OneE5))).Truncate(5)
+	maxQAtLimitBuy := decimal.Min(cumulativeQuantityBought, decimal.Min(limits.MaxOrderAmount, availableQuoteBalance).Div(highestBuyPrice))
+	quantityToBuy := maxQAtLimitBuy.Truncate(5)
 	if quantityToBuy.LessThanOrEqual(decimal.Zero) {
 		err = errNoArb
 		return
@@ -126,7 +125,6 @@ func FindArb(inOb tc.SFOXOrderbook, limits TradeLimits, availableQuoteBalance de
 		err = errNoArb
 		return
 	}
-	// TODO: change quantity based on buy limit price + position size.
 	arb = arbStrat{
 		Pair:           o.Pair,
 		BuyPrice:       buyVWAP,
