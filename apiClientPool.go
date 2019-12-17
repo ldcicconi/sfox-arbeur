@@ -7,8 +7,8 @@ type SFOXAPIClientPool struct {
 }
 
 func NewSFOXAPIClientPool(apiKeys []string) *SFOXAPIClientPool {
-	ready := make(chan *sfoxapi.SFOXAPI, 10)
-	for i := 0; i < 10; i++ {
+	ready := make(chan *sfoxapi.SFOXAPI, 20)
+	for i := 0; i < 20; i++ {
 		ready <- sfoxapi.NewSFOXAPI(apiKeys[i%len(apiKeys)])
 	}
 	return &SFOXAPIClientPool{

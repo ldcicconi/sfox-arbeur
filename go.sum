@@ -38,6 +38,8 @@ github.com/aws/aws-sdk-go v1.19.39/go.mod h1:KmX6BPdI08NWTb3/sm4ZGu5ShLoqVDhKgpi
 github.com/aws/aws-sdk-go v1.25.49 h1:j5R2Ey+g8qaiy2NJ9iH+KWzDWS4SjXRCjhc22EeQVE4=
 github.com/aws/aws-sdk-go v1.26.2 h1:MzYLmCeny4bMQcAbYcucIduVZKp0sEf1eRLvHpKI5Is=
 github.com/aws/aws-sdk-go v1.26.2/go.mod h1:KmX6BPdI08NWTb3/sm4ZGu5ShLoqVDhKgpiN924inxo=
+github.com/aws/aws-sdk-go v1.26.3 h1:szQdfJcUBAhQT0zZEx4sxoDuWb7iScoucxCiVxDmaBk=
+github.com/aws/aws-sdk-go v1.26.3/go.mod h1:KmX6BPdI08NWTb3/sm4ZGu5ShLoqVDhKgpiN924inxo=
 github.com/baiyubin/aliyun-sts-go-sdk v0.0.0-20180326062324-cfa1a18b161f/go.mod h1:AuiFmCCPBSrqvVMvuqFuk0qogytodnVFVSN5CeJB8Gc=
 github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973/go.mod h1:Dwedo/Wpr24TaqPxmxbtue+5NUziq4I4S80YR8gNf3Q=
 github.com/bgentry/speakeasy v0.1.0/go.mod h1:+zsyZBPWlz7T6j88CTgSN5bM796AkVf0kBD4zp0CCIs=
@@ -248,10 +250,14 @@ github.com/ldcicconi/sfox-api-lib v0.0.0-20191105013720-071b742f3394 h1:CdgrCQGs
 github.com/ldcicconi/sfox-api-lib v0.0.0-20191105013720-071b742f3394/go.mod h1:5kqMB5ky8UNpFKD/tBNb0l/r6AHYf2B1ZWpyWMZO8ac=
 github.com/ldcicconi/sfox-api-lib v0.0.0-20191124083754-1da86f673760 h1:IWCqgoH9SadWYl/NDeECtf7X3y+LUBQr2x6ZK5NrlBk=
 github.com/ldcicconi/sfox-api-lib v0.0.0-20191124083754-1da86f673760/go.mod h1:5kqMB5ky8UNpFKD/tBNb0l/r6AHYf2B1ZWpyWMZO8ac=
+github.com/ldcicconi/sfox-api-lib v0.0.0-20191215225313-fb927637e16d h1:g9A7XUhz8ZL5CqFy2fR7c8agMf5vdox5M1hAUnRZeOY=
+github.com/ldcicconi/sfox-api-lib v0.0.0-20191215225313-fb927637e16d/go.mod h1:5kqMB5ky8UNpFKD/tBNb0l/r6AHYf2B1ZWpyWMZO8ac=
 github.com/ldcicconi/trading-common v0.0.0-20191106221151-6aebe24e685c h1:Id4hVknAMBa9mzlEAq22QmE8UMP+3SHUbywLpWuUtD8=
 github.com/ldcicconi/trading-common v0.0.0-20191106221151-6aebe24e685c/go.mod h1:Ir4KX8yRX9flgsTsf1ATIaHxCJupVeIEheAZBG+y/Rg=
 github.com/ldcicconi/trading-common v0.0.0-20191215214922-a5a06fd13e10 h1:vtDx3HfzSBOQRAAAmJvpmRkRL81JILm4wiCWMb3Vpws=
 github.com/ldcicconi/trading-common v0.0.0-20191215214922-a5a06fd13e10/go.mod h1:+kwh/NfSA4DgStKgvwdwlzqbnZWHnk6fga6196jatXo=
+github.com/ldcicconi/trading-common v0.0.0-20191215231423-972966632a40 h1:ACducWuEjMI/29bYjCDqjGHuJXZqN1akgkjPyoSu8K0=
+github.com/ldcicconi/trading-common v0.0.0-20191215231423-972966632a40/go.mod h1:+kwh/NfSA4DgStKgvwdwlzqbnZWHnk6fga6196jatXo=
 github.com/ldcicconi/ws-contractor v0.0.0-20191104022244-6373f917fe44 h1:CJkwrTdDe6gC9mpFTNJz74MrD6o4yzJoVQtOcWAvm3c=
 github.com/ldcicconi/ws-contractor v0.0.0-20191104022244-6373f917fe44/go.mod h1:BN6E6DLHUvYNXuDoaa741us1OtPkX6RPoa/ROVBsv54=
 github.com/ldcicconi/ws-contractor v0.0.0-20191110170019-88afc346ecef h1:CnkQV23JroU4f1tjTdfxagT5kpFvFc3GqslFdlqjYIQ=
