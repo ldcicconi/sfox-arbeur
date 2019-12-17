@@ -24,7 +24,7 @@ var (
 		Trader Configs
 	*/
 	// User-defined configs
-	profitThresholdBps    = decimal.New(15, 0)
+	profitThresholdBps    = decimal.New(12, 0)
 	USDQuotePairMaxAmount = decimal.New(25, 0)
 
 	// SFOX-defined limits
