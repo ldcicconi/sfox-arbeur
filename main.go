@@ -85,7 +85,7 @@ func getAPIKeysFromEnv() ([]string, error) {
 }
 
 func main() {
-	apiKeys, err := getAPIKeysFromEnv()
+	apiKeys, err := getAPIKeysFromAWSSecrets()
 	if err != nil {
 		fmt.Println("[startup] failure to get API Keys:", err)
 		os.Exit(1)
