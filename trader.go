@@ -89,9 +89,139 @@ func (t *Trader) trade() {
 	go func() {
 		subProcessKillChan := make(chan struct{})
 		for {
-			select {
-			// non-blocking receive
-			case arb := <-t.arbChan:
+			// blocking receive
+			arb := <-t.arbChan
+			t.errCount = 0
+			var buyOrderStatus sfoxapi.OrderStatusResponse
+			var sellOrderStatus sfoxapi.OrderStatusResponse
+			for {
+				// non-blocking
+				select {
+				case <-t.killChan:
+					// exit the position
+					if arb.Status == STATUS_BUY_STARTED {
+						t.cancelOrder(buyOrderStatus.ID)
+						subProcessKillChan <- struct{}{}
+					} else if arb.Status == STATUS_SELL_STARTED {
+						t.cancelOrder(sellOrderStatus.ID)
+						subProcessKillChan <- struct{}{}
+					}
+					return
+				case <-t.noArbChan:
+					// exit the position
+					if arb.Status == STATUS_BUY_STARTED {
+						t.cancelOrder(buyOrderStatus.ID)
+						subProcessKillChan <- struct{}{}
+					}
+					// leave the sell order open to attempt to exit the position still....
+					break
+				case buyOrderStatus = <-t.buyOrderStatusChan:
+					fmt.Println("update from buy order status channel")
+					// update fill information if anything has changed
+					if buyOrderStatus.FilledQuantity.Equal(arb.Quantity) {
+						// complete fill:
+						t.infof("[buy] RECOGNIZED TOTAL FILL. FILLEDQUANTITY: %s", buyOrderStatus.FilledQuantity.String())
+						arb.Status = STATUS_BUY_COMPLETE
+					} else {
+						t.infof("[buy] RECOGNIZED PARTIAL FILL. FILLEDQUANTITY: %s", buyOrderStatus.FilledQuantity.String())
+						arb.Status = STATUS_BUY_STARTED
+					}
+				case sellOrderStatus = <-t.sellOrderStatusChan:
+					// update fill information if anything has changed
+					if sellOrderStatus.FilledQuantity.Equal(arb.Quantity) {
+						// complete fill:
+						t.infof("[sell] RECOGNIZED TOTAL FILL. FILLEDQUANTITY: %s", sellOrderStatus.FilledQuantity.String())
+						arb.Status = STATUS_SELL_COMPLETE
+					} else {
+						t.infof("[sell] RECOGNIZED PARTIAL FILL. FILLEDQUANTITY: %s", sellOrderStatus.FilledQuantity.String())
+						arb.Status = STATUS_SELL_STARTED
+					}
+				default:
+				}
+				if t.errCount > 5 {
+					break
+				}
+				if arb.Status == STATUS_INIT {
+					// enter the position
+					buyOrder := NewBuyOrderFromArbStrat(arb)
+					t.infof("attempting to buy %+v", buyOrder)
+					status, err := t.executeOrder(*buyOrder)
+					if err != nil {
+						t.infof("error attempting to buy %s", err.Error())
+						t.errCount++
+						continue
+					}
+					t.infof("buy request successful!")
+					// determine status
+					statusLower := strings.ToLower(status.Status)
+					if statusLower == "started" {
+						t.infof("buy started")
+						arb.Status = STATUS_BUY_STARTED
+						arb.BuyTime = time.Now()
+						t.startOrderStatusLoop(status.ID, t.buyOrderStatusChan, subProcessKillChan)
+					} else {
+						t.infof("unrecognized status: %s", statusLower)
+					}
+				}
+				if arb.Status == STATUS_BUY_COMPLETE {
+					t.errCount = 0
+					// exit the position
+					t.infof("attempting to exit position")
+					sellOrder := NewSellOrderFromArbStrat(arb, buyOrderStatus.FilledQuantity)
+					status, err := t.executeOrder(*sellOrder)
+					if err != nil {
+						t.infof("error attempting to sell %s", err.Error())
+						t.errCount++
+						continue
+					}
+					// determine status
+					statusLower := strings.ToLower(status.Status)
+					if statusLower == "started" {
+						t.infof("sell started")
+						arb.Status = STATUS_SELL_STARTED
+						arb.BuyTime = time.Now()
+						t.startOrderStatusLoop(status.ID, t.sellOrderStatusChan, subProcessKillChan)
+					} else {
+						t.infof("order %v requires manual intervention - returned status %v", status.ID, statusLower)
+					}
+
+				}
+				if arb.Status == STATUS_SELL_COMPLETE {
+					t.infof("ARB COMPLETE. PROFIT: %s%s", buyOrderStatus.NetProceeds.Add(sellOrderStatus.NetProceeds).String(), string(t.Config.Pair.Quote))
+					break
+				}
+				if arb.Status == STATUS_BUY_STARTED && time.Now().Sub(arb.BuyTime).Seconds() > 8.0 {
+					// cancel if it's taking too long to fill our buy order
+					t.cancelOrder(buyOrderStatus.ID)
+					break
+				}
+			}
+			if t.errCount > 5 {
+				return
+			}
+			if arb.Status == STATUS_INIT {
+				// enter the position
+				buyOrder := NewBuyOrderFromArbStrat(arb)
+				t.infof("attempting to buy %+v", buyOrder)
+				status, err := t.executeOrder(*buyOrder)
+				if err != nil {
+					t.infof("error attempting to buy %s", err.Error())
+					t.errCount++
+					continue
+				}
+				t.infof("buy request successful!")
+				// determine status
+				statusLower := strings.ToLower(status.Status)
+				if statusLower == "started" {
+					t.infof("buy started")
+					arb.Status = STATUS_BUY_STARTED
+					arb.BuyTime = time.Now()
+					t.startOrderStatusLoop(status.ID, t.buyOrderStatusChan, killChan)
+				} else {
+					t.infof("unrecognized status: %s", statusLower)
+				}
+			}
+			if arb.Status == STATUS_BUY_COMPLETE {
 				t.errCount = 0
 				var buyOrderStatus sfoxapi.OrderStatusResponse
 				var sellOrderStatus sfoxapi.OrderStatusResponse

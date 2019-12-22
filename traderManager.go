@@ -7,6 +7,7 @@ import (
 	"time"
 
 	sfox "github.com/ldcicconi/sfox-api-lib"
+	sfoxapi "github.com/ldcicconi/sfox-api-lib"
 	tc "github.com/ldcicconi/trading-common"
 	"github.com/shopspring/decimal"
 )
@@ -37,7 +38,7 @@ func NewTraderManager(logger *log.Logger, sfoxAPIKeys []string, traderConfigs []
 	return &traderManager{
 		Logger:         logger,
 		balances:       NewSafeBalanceMap(),
-		SFOXClientPool: NewSFOXAPIClientPool(sfoxAPIKeys),
+		SFOXClientPool: NewSFOXAPIClientPool(sfoxAPIKeys, len(traders)+2),
 		traders:        traders,
 	}
 }
@@ -77,23 +78,29 @@ func (t *traderManager) routeOrderbooks(orderbookChan chan tc.SFOXOrderbook) {
 func (t *traderManager) monitorBalances() {
 	// Poll SFOX every 5 seconds and update local register
 	go func() {
-		var balances []sfox.SFOXBalance
-		var err error
-		for range time.Tick(5 * time.Second) {
-			client := t.SFOXClientPool.GetAPIClient()
-			balances, err = client.GetBalances()
-			if err != nil {
-				t.Logger.Printf("error getting balances %s", err.Error())
-				continue
-			}
-			t.SFOXClientPool.ReturnAPIClient(client)
-			t.balances.mtx.Lock()
-			for _, b := range balances {
-				t.balances.m[tc.Currency(b.Currency)] = b.Available
-			}
-			t.balances.mtx.Unlock()
+		for range time.Tick(9 * time.Second) {
+			t.checkAndUpdateBalances()
 		}
 	}()
+}
+
+func (t *traderManager) checkAndUpdateBalances() {
+	t.Logger.Println("checking balance")
+	client, err := t.SFOXClientPool.GetAPIClient()
+	defer t.SFOXClientPool.ReturnAPIClient(client)
+	if err != nil {
+		t.Logger.Printf("error getting an SFOX client %s", err.Error())
+	}
+	balances, err := client.GetBalances()
+	if err != nil {
+		t.Logger.Printf("error getting balances %s", err.Error())
+		return
+	}
+	t.balances.mtx.Lock()
+	for _, b := range balances {
+		t.balances.m[tc.Currency(b.Currency)] = b.Available
+	}
+	t.balances.mtx.Unlock()
 }
 
 func (t *traderManager) logArb(o tc.SFOXOrderbook) {
@@ -109,7 +116,17 @@ func (t *traderManager) logArb(o tc.SFOXOrderbook) {
 }
 
 func (tm *traderManager) GetSFOXClient() *sfox.SFOXAPI {
-	return tm.SFOXClientPool.GetAPIClient()
+	// this is used by the traders, so I'm going to make this block until a client is available
+	var c *sfoxapi.SFOXAPI
+	var err error
+	for true {
+		c, err = tm.SFOXClientPool.GetAPIClient()
+		if err != nil {
+			continue
+		}
+		break
+	}
+	return c
 }
 
 func (tm *traderManager) ReturnSFOXClient(c *sfox.SFOXAPI) {

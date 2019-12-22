@@ -1,28 +1,47 @@
 package main
 
-import sfoxapi "github.com/ldcicconi/sfox-api-lib"
+import (
+	"fmt"
+	"sync"
+
+	sfoxapi "github.com/ldcicconi/sfox-api-lib"
+)
 
 type SFOXAPIClientPool struct {
-	ReadyQueue chan *sfoxapi.SFOXAPI
+	ready []*sfoxapi.SFOXAPI
+	inUse []*sfoxapi.SFOXAPI
+	lock  sync.Mutex
 }
 
-func NewSFOXAPIClientPool(apiKeys []string) *SFOXAPIClientPool {
-	ready := make(chan *sfoxapi.SFOXAPI, 20)
+var ErrNoClientAvailable = fmt.Errorf("no client available in pool")
+
+func NewSFOXAPIClientPool(apiKeys []string, numOfConnections int) *SFOXAPIClientPool {
+	ready := []*sfoxapi.SFOXAPI{}
 	for i := 0; i < 20; i++ {
-		ready <- sfoxapi.NewSFOXAPI(apiKeys[i%len(apiKeys)])
+		ready = append(ready, sfoxapi.NewSFOXAPI(apiKeys[i%len(apiKeys)]))
 	}
 	return &SFOXAPIClientPool{
-		ReadyQueue: ready,
+		ready: ready,
+		inUse: []*sfoxapi.SFOXAPI{},
 	}
 }
 
 // NOTE: This could be a blocking call (if there is no api waiting in the ReadyQueue)
-func (pool *SFOXAPIClientPool) GetAPIClient() *sfoxapi.SFOXAPI {
-	ret := <-pool.ReadyQueue
-	return ret
+func (pool *SFOXAPIClientPool) GetAPIClient() (*sfoxapi.SFOXAPI, error) {
+	pool.lock.Lock()
+	defer pool.lock.Unlock()
+	if len(pool.ready) == 0 {
+		return nil, ErrNoClientAvailable
+	}
+	var newReadyQueue []*sfoxapi.SFOXAPI
+	client, newReadyQueue := pool.ready[len(pool.ready)-1], pool.ready[:len(pool.ready)-1]
+	pool.ready = newReadyQueue
+	return client, nil
 }
 
 func (pool *SFOXAPIClientPool) ReturnAPIClient(c *sfoxapi.SFOXAPI) {
-	pool.ReadyQueue <- c
+	pool.lock.Lock()
+	defer pool.lock.Unlock()
+	pool.ready = append(pool.ready, c)
 	return
 }
