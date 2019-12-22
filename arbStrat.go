@@ -35,13 +35,13 @@ func (as *arbStatus) String() string {
 }
 
 const (
-	STATUS_INIT          arbStatus = 0
-	STATUS_BUY_STARTED   arbStatus = 50
-	STATUS_BUY_COMPLETE  arbStatus = 100
-	STATUS_SELL_STARTED  arbStatus = 150
-	STATUS_SELL_COMPLETE arbStatus = 200
-	STATUS_DONE          arbStatus = 300
-	STATUS_CANCELED      arbStatus = -1
+	STATUS_INIT arbStatus = iota
+	STATUS_BUY_STARTED
+	STATUS_BUY_COMPLETE
+	STATUS_SELL_STARTED
+	STATUS_SELL_COMPLETE
+	STATUS_DONE
+	STATUS_CANCELED
 )
 
 // TODO: needs to be tested
@@ -53,17 +53,17 @@ func FindArb(inOb tc.SFOXOrderbook, limits TradeLimits, availableQuoteBalance de
 		return
 	}
 	var bidIndex int
-	var cumulativeQuantitySold decimal.Decimal
 	var cumulativeProceedsFromSale decimal.Decimal
-	var cumulativeProceedsFromSaleWFees decimal.Decimal
 	var cumulativeQuantityBought decimal.Decimal
 	var cumulativeBuyCost decimal.Decimal
-	var cumulativeBuyCostWFees decimal.Decimal
 	var highestBuyPrice decimal.Decimal
 	var lowestSellPrice decimal.Decimal
+	feesNative := limits.FeeRateBps.Div(tc.OneE5)
+	onePlusFees := tc.One.Add(feesNative)
+	oneMinusFees := tc.One.Sub(feesNative)
 	remainingAvailableQuote := decimal.Min(limits.MaxOrderAmount, availableQuoteBalance)
 
-	var bidSliceQuantity decimal.Decimal
+	var sliceQuantity decimal.Decimal
 	for _, ask := range o.Asks {
 		if !IsArbGreaterThanThreshold(ask.Price, o.Bids[bidIndex].Price, limits.FeeRateBps, limits.ProfitThresholdBps) {
 			// if there is no arb at this price, there is definitely no arb at a worse price
@@ -71,30 +71,29 @@ func FindArb(inOb tc.SFOXOrderbook, limits TradeLimits, availableQuoteBalance de
 		}
 		askSliceQuantity := decimal.Min(remainingAvailableQuote.Div(ask.Price), ask.Quantity)
 		highestBuyPrice = ask.Price
-		cumulativeAskQuantitySold := decimal.Zero
+		cumulativeAskQuantitySold := decimal.Zero // for each ask, keep track of how much we have sold off on to bids
 		for {
-			bidSliceQuantity = decimal.Min(o.Bids[bidIndex].Quantity, askSliceQuantity) // this is the amount we can purchase from this ask and offload on this bid
-			o.Bids[bidIndex].Quantity = o.Bids[bidIndex].Quantity.Sub(bidSliceQuantity)
+			sliceQuantity = decimal.Min(o.Bids[bidIndex].Quantity, askSliceQuantity.Sub(cumulativeAskQuantitySold)) // this is the amount we can purchase from this ask and offload on this bid
+			o.Bids[bidIndex].Quantity = o.Bids[bidIndex].Quantity.Sub(sliceQuantity)
 			lowestSellPrice = o.Bids[bidIndex].Price
 			// update cumulative bought
-			cumulativeQuantityBought = cumulativeQuantityBought.Add(bidSliceQuantity)
-			cumulativeBuyCost = cumulativeBuyCost.Add(bidSliceQuantity.Mul(ask.Price))
-			cumulativeBuyCostWFees = cumulativeBuyCostWFees.Add(bidSliceQuantity.Mul(ask.Price).Mul(tc.One.Add(limits.FeeRateBps.Div(tc.OneE5))))
+			cumulativeQuantityBought = cumulativeQuantityBought.Add(sliceQuantity)
+			cumulativeBuyCost = cumulativeBuyCost.Add(sliceQuantity.Mul(ask.Price))
 			// update cumulative sold
-			cumulativeQuantitySold = cumulativeQuantitySold.Add(bidSliceQuantity)
-			cumulativeAskQuantitySold = cumulativeAskQuantitySold.Add(bidSliceQuantity)
-			cumulativeProceedsFromSale = cumulativeProceedsFromSale.Add(bidSliceQuantity.Mul(o.Bids[bidIndex].Price))
-			cumulativeProceedsFromSaleWFees = cumulativeProceedsFromSaleWFees.Add(bidSliceQuantity.Mul(o.Bids[bidIndex].Price).Mul(tc.One.Add(limits.FeeRateBps.Div(tc.OneE5))))
-			// decrement quantity
-			remainingAvailableQuote = remainingAvailableQuote.Sub(bidSliceQuantity.Mul(ask.Price))
+			cumulativeAskQuantitySold = cumulativeAskQuantitySold.Add(sliceQuantity)
+			cumulativeProceedsFromSale = cumulativeProceedsFromSale.Add(sliceQuantity.Mul(o.Bids[bidIndex].Price))
+			remainingAvailableQuote = remainingAvailableQuote.Sub(sliceQuantity.Mul(ask.Price.Mul(onePlusFees))) // makes sure to account for the fee we have to pay for this ask
 			// incremement the bids if we've sold through one
 			if o.Bids[bidIndex].Quantity.Equal(decimal.Zero) {
 				bidIndex++
 			} else if o.Bids[bidIndex].Quantity.LessThan(decimal.Zero) {
 				fmt.Println("BAD ERROR SHOULD NEVER HAPPEN")
 			}
-			// break if we've sold everything we bought, or if there is not an arb further into the book
-			if cumulativeAskQuantitySold.GreaterThanOrEqual(askSliceQuantity) || !IsArbGreaterThanThreshold(ask.Price, o.Bids[bidIndex].Price, limits.FeeRateBps, limits.ProfitThresholdBps) {
+			// break if we've bought+sold everything available on the ask
+			if cumulativeAskQuantitySold.GreaterThanOrEqual(askSliceQuantity) {
+				break
+			} // or if there is not an arb further into the book
+			if !IsArbGreaterThanThreshold(ask.Price, o.Bids[bidIndex].Price, limits.FeeRateBps, limits.ProfitThresholdBps) {
 				break
 			}
 		}
@@ -106,8 +105,8 @@ func FindArb(inOb tc.SFOXOrderbook, limits TradeLimits, availableQuoteBalance de
 		err = errNoArb
 		return
 	}
-	buyVWAP := cumulativeBuyCostWFees.Div(cumulativeQuantityBought)
-	sellVWAP := cumulativeProceedsFromSaleWFees.Div(cumulativeQuantitySold)
+	buyVWAP := cumulativeBuyCost.Mul(onePlusFees).Div(cumulativeQuantityBought)
+	sellVWAP := cumulativeProceedsFromSale.Mul(oneMinusFees).Div(cumulativeQuantityBought)
 	maxQAtLimitBuy := decimal.Min(cumulativeQuantityBought, decimal.Min(limits.MaxOrderAmount, availableQuoteBalance).Div(highestBuyPrice))
 	quantityToBuy := maxQAtLimitBuy.Truncate(5)
 	if quantityToBuy.LessThanOrEqual(decimal.Zero) {

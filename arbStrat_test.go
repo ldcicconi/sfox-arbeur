@@ -170,7 +170,7 @@ var testLimits = TradeLimits{
 	MinOrderAmount:     decimal.Zero,
 	MaxOrderAmount:     decimal.New(10000000, 0),
 	ProfitThresholdBps: decimal.New(30, 0),
-	FeeRateBps:         decimal.New(10, 0),
+	FeeRateBps:         decimal.New(0, 0),
 }
 
 func TestNoArbOrderbook(t *testing.T) {
@@ -193,12 +193,12 @@ func TestSimpleArb(t *testing.T) {
 	arb1, err := FindArb(testOrderbookTwo, testLimits, decimal.New(800, 0)) // 800 + no fee means we can buy the entire offer
 	expectedArb1 := arbStrat{
 		Pair:           *tc.NewPair("btcusd"),
-		BuyPrice:       decimal.New(1001, -1),
-		SellPrice:      decimal.New(101101, -3),
+		BuyPrice:       decimal.New(100, 0),
+		SellPrice:      decimal.New(101, 0),
 		BuyLimitPrice:  decimal.New(100, 0),
 		SellLimitPrice: decimal.New(101, 0),
 		Quantity:       decimal.New(8, 0),
-		ProfitGoal:     decimal.New(8008, -3), // ~$1 on each btc purchased
+		ProfitGoal:     decimal.New(8, 0), // ~$1 on each btc purchased
 		ProfitGoalBps:  decimal.New(100, 0),
 	}
 	if err == errNoArb {
@@ -211,12 +211,12 @@ func TestSimpleArb(t *testing.T) {
 	arb2, err := FindArb(testOrderbookTwo, testLimits, decimal.New(500, 0))
 	expectedArb2 := arbStrat{
 		Pair:           *tc.NewPair("btcusd"),
-		BuyPrice:       decimal.New(1001, -1),
-		SellPrice:      decimal.New(101101, -3),
+		BuyPrice:       decimal.New(100, 0),
+		SellPrice:      decimal.New(101, 0),
 		BuyLimitPrice:  decimal.New(100, 0),
 		SellLimitPrice: decimal.New(101, 0),
 		Quantity:       decimal.New(5, 0),
-		ProfitGoal:     decimal.New(5005, -3), // $1 on each btc purchased
+		ProfitGoal:     decimal.New(5, 0), // $1 on each btc purchased
 		ProfitGoalBps:  decimal.New(100, 0),
 	}
 	if err == errNoArb {
@@ -252,12 +252,12 @@ func TestComplexArb(t *testing.T) {
 	expectedArb1 := arbStrat{
 		Pair:           *tc.NewPair("btcusd"),
 		BuyPrice:       decimal.New(9997988, -5),
-		SellPrice:      decimal.New(10129896, -5),
+		SellPrice:      decimal.New(10125864, -5),
 		BuyLimitPrice:  decimal.New(1004, -1),
 		SellLimitPrice: decimal.New(1008, -1),
 		Quantity:       decimal.New(5, 0),
-		ProfitGoal:     decimal.New(65954, -4),
-		ProfitGoalBps:  decimal.New(13193454, -5),
+		ProfitGoal:     decimal.New(63938, -4),
+		ProfitGoalBps:  decimal.New(12790173, -5),
 	}
 	if err == errNoArb {
 		t.Errorf("FAILED TEST ON EXISTANT ARB WITH NO FEES AND 1BPS PROFIT MIN - arb: %+v", arb1)

@@ -91,6 +91,7 @@ func (t *Trader) trade() {
 		for {
 			// blocking receive
 			arb := <-t.arbChan
+			t.infof("entering arb: %+v", arb)
 			t.errCount = 0
 			var buyOrderStatus sfoxapi.OrderStatusResponse
 			var sellOrderStatus sfoxapi.OrderStatusResponse
