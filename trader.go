@@ -68,7 +68,7 @@ func (t *Trader) logLatency(ob tc.SFOXOrderbook) {
 func (t *Trader) handleOrderbook(o tc.SFOXOrderbook) {
 	quoteBalance := t.getBalance(t.Config.Pair.Quote)
 	arb, err := FindArb(o, t.Config.TradeLimits, quoteBalance)
-	t.infof(o.DescribeArb(t.Config.FeeRateBps))
+	// t.infof(o.DescribeArb(t.Config.FeeRateBps))
 	if err == nil {
 		// non-blocking send, trader might already be trading
 		select {
