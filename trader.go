@@ -47,7 +47,7 @@ func (t *Trader) Start() {
 func (t *Trader) monitorOrderbooks() {
 	go func() {
 		for o := range t.OrderbookChan {
-			t.infof(o.DescribeArb(t.Config.FeeRateBps))
+			// t.infof(o.DescribeArb(t.Config.FeeRateBps))
 			t.handleOrderbook(o)
 		}
 	}()
