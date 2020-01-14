@@ -25,7 +25,7 @@ var (
 	*/
 	// User-defined configs
 	profitThresholdBps    = decimal.New(12, 0)
-	USDQuotePairMaxAmount = decimal.New(25, 0)
+	USDQuotePairMaxAmount = decimal.New(50, 0)
 
 	// SFOX-defined limits
 	smartFee                = decimal.New(175, -1) // 17.5bps

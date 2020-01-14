@@ -219,7 +219,6 @@ func (t *Trader) startOrderStatusLoop(orderID int64, statusChannel chan sfoxapi.
 			time.Sleep(time.Millisecond * 500)
 			newOrderStatus, err := t.getOrderStatus(orderID)
 			if err != nil {
-				t.infof("ERROR: %s", err.Error())
 				continue
 			}
 			if newOrderStatus.Status == "Canceled" {
