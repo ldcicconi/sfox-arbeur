@@ -171,7 +171,6 @@ func (t *Trader) trade() {
 					}
 				}
 				if arb.Status == STATUS_BUY_COMPLETE {
-					t.errCount = 0
 					// exit the position
 					t.infof("attempting to exit position")
 					sellOrder := NewSellOrderFromArbStrat(arb, buyOrderStatus.FilledQuantity)
