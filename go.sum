@@ -265,6 +265,8 @@ github.com/ldcicconi/sfox-api-lib v0.0.0-20200114050743-558c332f0fa7 h1:Cw6c5Ivs
 github.com/ldcicconi/sfox-api-lib v0.0.0-20200114050743-558c332f0fa7/go.mod h1:Ke2M8mkHid3TMmYGE6fjlbBC5+4wChakK4PLU6MY7f8=
 github.com/ldcicconi/sfox-api-lib v0.0.0-20200114052653-5d9436caab35 h1:pn7z2q4dr92wQN3NhxvDE8JtyLzQTJ5AK6DbklvzDPM=
 github.com/ldcicconi/sfox-api-lib v0.0.0-20200114052653-5d9436caab35/go.mod h1:Ke2M8mkHid3TMmYGE6fjlbBC5+4wChakK4PLU6MY7f8=
+github.com/ldcicconi/sfox-api-lib v0.0.0-20200114162612-5413daa3e148 h1:/OkNVpKXYDHHb1Qph6Geq+fAIGJ/C8An4+E6Mm78/e4=
+github.com/ldcicconi/sfox-api-lib v0.0.0-20200114162612-5413daa3e148/go.mod h1:Ke2M8mkHid3TMmYGE6fjlbBC5+4wChakK4PLU6MY7f8=
 github.com/ldcicconi/trading-common v0.0.0-20191106221151-6aebe24e685c h1:Id4hVknAMBa9mzlEAq22QmE8UMP+3SHUbywLpWuUtD8=
 github.com/ldcicconi/trading-common v0.0.0-20191106221151-6aebe24e685c/go.mod h1:Ir4KX8yRX9flgsTsf1ATIaHxCJupVeIEheAZBG+y/Rg=
 github.com/ldcicconi/trading-common v0.0.0-20191215231423-972966632a40 h1:ACducWuEjMI/29bYjCDqjGHuJXZqN1akgkjPyoSu8K0=
