@@ -18,6 +18,8 @@ github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5/go.mod h1:lmUJ/7eu/Q8
 github.com/SAP/go-hdb v0.14.1/go.mod h1:7fdQLVC2lER3urZLjZCm0AuMQfApof92n3aylBPEkMo=
 github.com/Shopify/sarama v1.19.0/go.mod h1:FVkBWblsNy7DGZRfXLU0O9RCGt5g3g3yEuWXgklEdEo=
 github.com/Shopify/toxiproxy v2.1.4+incompatible/go.mod h1:OXgGpZ6Cli1/URJOF1DMxUHB2q5Ap20/P/eIdh4G0pI=
+github.com/Xuyuanp/trie v0.0.0-20140322165851-e48760d77301 h1:ZaQIayL+ySX5fZFsQv1CQUv862SAaVnS7E7C8v77N70=
+github.com/Xuyuanp/trie v0.0.0-20140322165851-e48760d77301/go.mod h1:V6LIDtX9wDX5qcqUy93AkhAIqZyK1iEa7cJqkTyJN0Q=
 github.com/abdullin/seq v0.0.0-20160510034733-d5467c17e7af/go.mod h1:5Jv4cbFiHJMsVxt52+i0Ha45fjshj6wxYr1r19tB9bw=
 github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
 github.com/alecthomas/units v0.0.0-20151022065526-2efee857e7cf/go.mod h1:ybxpYRFXyAe+OPACYpWeL0wqObRcbAqCMya13uyzqw0=
@@ -39,6 +41,8 @@ github.com/aws/aws-sdk-go v1.26.3 h1:szQdfJcUBAhQT0zZEx4sxoDuWb7iScoucxCiVxDmaBk
 github.com/aws/aws-sdk-go v1.26.3/go.mod h1:KmX6BPdI08NWTb3/sm4ZGu5ShLoqVDhKgpiN924inxo=
 github.com/aws/aws-sdk-go v1.26.7 h1:ObjEnmzvSdYy8KVd3me7v/UMyCn81inLy2SyoIPoBkg=
 github.com/aws/aws-sdk-go v1.26.7/go.mod h1:KmX6BPdI08NWTb3/sm4ZGu5ShLoqVDhKgpiN924inxo=
+github.com/aws/aws-sdk-go v1.28.1 h1:aWBD5EJrmGFuHFn9ZdaHqWWZGZYQ5Gzb3j9G0RppLpY=
+github.com/aws/aws-sdk-go v1.28.1/go.mod h1:KmX6BPdI08NWTb3/sm4ZGu5ShLoqVDhKgpiN924inxo=
 github.com/baiyubin/aliyun-sts-go-sdk v0.0.0-20180326062324-cfa1a18b161f/go.mod h1:AuiFmCCPBSrqvVMvuqFuk0qogytodnVFVSN5CeJB8Gc=
 github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973/go.mod h1:Dwedo/Wpr24TaqPxmxbtue+5NUziq4I4S80YR8gNf3Q=
 github.com/bgentry/speakeasy v0.1.0/go.mod h1:+zsyZBPWlz7T6j88CTgSN5bM796AkVf0kBD4zp0CCIs=
@@ -257,6 +261,8 @@ github.com/ldcicconi/sfox-api-lib v0.0.0-20191222170832-0adc52d7a1da h1:fMtfD9/I
 github.com/ldcicconi/sfox-api-lib v0.0.0-20191222170832-0adc52d7a1da/go.mod h1:5kqMB5ky8UNpFKD/tBNb0l/r6AHYf2B1ZWpyWMZO8ac=
 github.com/ldcicconi/sfox-api-lib v0.0.0-20191223180727-c1ab16240615 h1:31RHafpOsIm7uldT41d7FKtzjzhf0ePwc4AitkflnEM=
 github.com/ldcicconi/sfox-api-lib v0.0.0-20191223180727-c1ab16240615/go.mod h1:5kqMB5ky8UNpFKD/tBNb0l/r6AHYf2B1ZWpyWMZO8ac=
+github.com/ldcicconi/sfox-api-lib v0.0.0-20200114050743-558c332f0fa7 h1:Cw6c5IvsG5yrVC3C+hwveEt4UAV54T+DmqjJDNOvEG4=
+github.com/ldcicconi/sfox-api-lib v0.0.0-20200114050743-558c332f0fa7/go.mod h1:Ke2M8mkHid3TMmYGE6fjlbBC5+4wChakK4PLU6MY7f8=
 github.com/ldcicconi/trading-common v0.0.0-20191106221151-6aebe24e685c h1:Id4hVknAMBa9mzlEAq22QmE8UMP+3SHUbywLpWuUtD8=
 github.com/ldcicconi/trading-common v0.0.0-20191106221151-6aebe24e685c/go.mod h1:Ir4KX8yRX9flgsTsf1ATIaHxCJupVeIEheAZBG+y/Rg=
 github.com/ldcicconi/trading-common v0.0.0-20191215231423-972966632a40 h1:ACducWuEjMI/29bYjCDqjGHuJXZqN1akgkjPyoSu8K0=
@@ -350,6 +356,8 @@ github.com/shopspring/decimal v0.0.0-20191009025716-f1972eb1d1f5 h1:Gojs/hac/DoY
 github.com/shopspring/decimal v0.0.0-20191009025716-f1972eb1d1f5/go.mod h1:M+9NzErvs504Cn4c5DxATwIqPbtswREoFCre64PpcG4=
 github.com/shopspring/decimal v0.0.0-20191130220710-360f2bc03045 h1:8CnFGhoe92Izugjok8nZEGYCNovJwdRFYwrEiLtG6ZQ=
 github.com/shopspring/decimal v0.0.0-20191130220710-360f2bc03045/go.mod h1:DKyhrW/HYNuLGql+MJL6WCR6knT2jwCFRcu2hWCYk4o=
+github.com/shopspring/decimal v0.0.0-20200105231215-408a2507e114 h1:Pm6R878vxWWWR+Sa3ppsLce/Zq+JNTs6aVvRu13jv9A=
+github.com/shopspring/decimal v0.0.0-20200105231215-408a2507e114/go.mod h1:DKyhrW/HYNuLGql+MJL6WCR6knT2jwCFRcu2hWCYk4o=
 github.com/sirupsen/logrus v1.0.5/go.mod h1:pMByvHTf9Beacp5x1UXfOR9xyW/9antXMhjMPG0dEzc=
 github.com/sirupsen/logrus v1.2.0/go.mod h1:LxeOpSwHxABJmUn/MG1IvRgCAasNZTLOkJPxbbu5VWo=
 github.com/sirupsen/logrus v1.4.1/go.mod h1:ni0Sbl8bgC9z8RoU9G6nDWqqs/fq4eDPysMBDgk/93Q=
@@ -374,6 +382,8 @@ github.com/ugorji/go/codec v0.0.0-20190204201341-e444a5086c43/go.mod h1:iT03XoTw
 github.com/urfave/cli v1.20.0/go.mod h1:70zkFmudgCuE/ngEzBv17Jvp/497gISqfk5gWijbERA=
 github.com/valyala/fastjson v1.4.1 h1:hrltpHpIpkaxll8QltMU8c3QZ5+qIiCL8yKqPFJI/yE=
 github.com/valyala/fastjson v1.4.1/go.mod h1:nV6MsjxL2IMJQUoHDIrjEI7oLyeqK6aBD7EFWPsvP8o=
+github.com/valyala/fastjson v1.4.5 h1:uSuLfXk2LzRtzwd3Fy5zGRBe0Vs7zhs11vjdko32xb4=
+github.com/valyala/fastjson v1.4.5/go.mod h1:nV6MsjxL2IMJQUoHDIrjEI7oLyeqK6aBD7EFWPsvP8o=
 github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2/go.mod h1:UETIi67q53MR2AWcXfiuqkDkRtnGDLqkBTpCHuJHxtU=
 go.etcd.io/bbolt v1.3.2/go.mod h1:IbVyRI1SCnLcuJnV2u8VeU0CEYM7e686BmAb1XKL+uU=
 go.etcd.io/etcd v0.0.0-20190412021913-f29b1ada1971/go.mod h1:KSGwdbiFchh5KIC9My2+ZVl5/3ANcwohw50dpPwa2cw=

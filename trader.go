@@ -140,6 +140,12 @@ func (t *Trader) trade() {
 				default:
 				}
 				if t.errCount > 5 {
+					t.infof("too many errors - canceling order and quitting arb")
+					if arb.Status == STATUS_BUY_STARTED {
+						t.cancelOrder(buyOrderStatus.ID)
+					} else if arb.Status == STATUS_SELL_STARTED {
+						t.cancelOrder(sellOrderStatus.ID)
+					}
 					break
 				}
 				if arb.Status == STATUS_INIT {

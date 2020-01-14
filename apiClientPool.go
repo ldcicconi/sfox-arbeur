@@ -9,7 +9,6 @@ import (
 
 type SFOXAPIClientPool struct {
 	ready []*sfoxapi.SFOXAPI
-	inUse []*sfoxapi.SFOXAPI
 	lock  sync.Mutex
 }
 
@@ -17,12 +16,13 @@ var ErrNoClientAvailable = fmt.Errorf("no client available in pool")
 
 func NewSFOXAPIClientPool(apiKeys []string, numOfConnections int) *SFOXAPIClientPool {
 	ready := []*sfoxapi.SFOXAPI{}
+	apiErrorMonitor := sfoxapi.NewMonitor()
 	for i := 0; i < 20; i++ {
-		ready = append(ready, sfoxapi.NewSFOXAPI(apiKeys[i%len(apiKeys)]))
+		ready = append(ready, sfoxapi.NewSFOXAPI(apiKeys[i%len(apiKeys)], apiErrorMonitor))
 	}
+	apiErrorMonitor.Start()
 	return &SFOXAPIClientPool{
 		ready: ready,
-		inUse: []*sfoxapi.SFOXAPI{},
 	}
 }
 
