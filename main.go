@@ -24,8 +24,8 @@ var (
 		Trader Configs
 	*/
 	// User-defined configs
-	profitThresholdBps    = decimal.New(15, 0)
-	USDQuotePairMaxAmount = decimal.New(25, 0)
+	profitThresholdBps    = decimal.New(12, 0)
+	USDQuotePairMaxAmount = decimal.New(50, 0)
 
 	// SFOX-defined limits
 	smartFee                = decimal.New(175, -1) // 17.5bps
@@ -85,7 +85,7 @@ func getAPIKeysFromEnv() ([]string, error) {
 }
 
 func main() {
-	apiKeys, err := getAPIKeysFromEnv()
+	apiKeys, err := getAPIKeysFromAWSSecrets()
 	if err != nil {
 		fmt.Println("[startup] failure to get API Keys:", err)
 		os.Exit(1)

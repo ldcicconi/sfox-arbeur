@@ -85,7 +85,7 @@ func (t *traderManager) monitorBalances() {
 }
 
 func (t *traderManager) checkAndUpdateBalances() {
-	t.Logger.Println("checking balance")
+	// t.Logger.Println("checking balance")
 	client, err := t.SFOXClientPool.GetAPIClient()
 	defer t.SFOXClientPool.ReturnAPIClient(client)
 	if err != nil {
